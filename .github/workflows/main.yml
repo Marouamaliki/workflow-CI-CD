@@ -21,10 +21,10 @@ jobs:
       - name: Build and Push microservices1
         run: 
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
-          docker push  ${{ secrets.DOCKERHUB_TOKEN  }}/microservices1:latest
+          docker push  ${{ secrets.DOCKERHUB_USERNAME  }}/microservices1:latest
 
       - name: Build and Push microservices2
         run: 
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
-          docker push  ${{ secrets.DOCKERHUB_TOKEN  }}/microservices2:latest
+          docker push  ${{ secrets.DOCKERHUB_USERNAME  }}/microservices2:latest
   
