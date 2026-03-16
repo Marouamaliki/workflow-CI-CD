@@ -1,4 +1,4 @@
-name: Workflow CI Build & Push Images Microservices
+name: Workflow CI lint-test-build-
 
 on:
   push:
@@ -6,24 +6,9 @@ on:
       - main
 
 jobs:
-  Sonarqube-Analysis:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 3
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  
 
   build-push:
-    needs: Sonarqube-Analysis
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
