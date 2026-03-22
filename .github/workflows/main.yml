@@ -5,7 +5,7 @@ on:
   Pull Request:
     Branch : [main]
 jobs:
-  runs-on: Alexsys Runner
+  runs-on: Alexsys Runner 2
   strategy:
       matrix:
         service: [microservices1, microservices2]
