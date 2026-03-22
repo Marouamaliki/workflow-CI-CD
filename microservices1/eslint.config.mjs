@@ -1,8 +1,16 @@
-import js from "@eslint/js";
-import globals from "globals";
-import { defineConfig } from "eslint/config";
+// microservices1/eslint.config.mjs
+import { defineConfig } from "eslint-define-config";
 
-export default defineConfig([
-  { files: ["**/*.{js,mjs,cjs}"], plugins: { js }, extends: ["js/recommended"], languageOptions: { globals: globals.browser } },
-  { files: ["**/*.js"], languageOptions: { sourceType: "commonjs" } },
-]);
+export default defineConfig({
+  overrides: [
+    {
+      files: ["**/*.{js,mjs,cjs}"],
+      extends: ["eslint:recommended"],
+      env: { browser: true },
+    },
+    {
+      files: ["**/*.js"],
+      parserOptions: { sourceType: "script" },
+    },
+  ],
+});
