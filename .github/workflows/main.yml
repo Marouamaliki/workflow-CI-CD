@@ -7,7 +7,6 @@ on:
 jobs:
   lint_test: 
     runs-on: [self-hosted, Alexsys-Runner]
-
     strategy:
       matrix:
         service: [microservices1, microservices2]
