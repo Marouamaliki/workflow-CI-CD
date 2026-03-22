@@ -1,6 +1,6 @@
 name: workflow CI/CD 
 on: 
-  Push:
+  push:
     branches : [main]
   pull_request:
     branches : [main]
