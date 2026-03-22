@@ -1,16 +1,18 @@
 name: workflow CI/CD 
 on: 
   Push:
-    Branch : [main]
-  Pull Request:
-    Branch : [main]
+    branches : [main]
+  pull_request:
+    branches : [main]
 jobs:
   runs-on: Alexsys Runner 2
-  strategy:
+  
+  lint_test: 
+    runs-on: [self-hosted, Alexsys-Runner]
+
+    strategy:
       matrix:
         service: [microservices1, microservices2]
-
-  Lint Test: 
     steps: 
       - name: checkout the code 
         uses: actions/checkout@v4
@@ -22,19 +24,20 @@ jobs:
           npm install
       - name: Build Node Project
         run: |
-          cd ${{ matrix.service}}
+          cd ${{ matrix.service }}
           npm ci
       - name: linting
         run: |
-          cd ${{ matrix.service}}
+          cd ${{ matrix.service }}
           npm run lint
       - name: testing
         run: |
-          cd ${{ matrix.service}}
+          cd ${{ matrix.service }}
           npm run test
   Build:
     name: docker build & deploy
-    needs: Lint Test
+    needs: lint_test
+    runs-on: [self-hosted, Alexsys-Runner]
     steps:
       - uses: actions/checkout@v3
 
