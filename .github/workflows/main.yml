@@ -6,7 +6,7 @@ on:
     branches : [main]
 jobs:
   lint_test: 
-    runs-on: [self-hosted, Alexsys-Runner]
+    runs-on: self-hosted
     strategy:
       matrix:
         service: [microservices1, microservices2]
@@ -34,7 +34,7 @@ jobs:
   Build:
     name: docker build & deploy
     needs: lint_test
-    runs-on: [self-hosted, Alexsys-Runner]
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
 
