@@ -5,8 +5,6 @@ on:
   pull_request:
     branches : [main]
 jobs:
-  runs-on: Alexsys Runner 2
-  
   lint_test: 
     runs-on: [self-hosted, Alexsys-Runner]
 
