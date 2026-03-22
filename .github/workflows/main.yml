@@ -1,15 +1,40 @@
-name: Workflow CI lint-test-build-
-
-on:
-  push:
-    branches:
-      - main
-
+name: workflow CI/CD 
+on: 
+  Push:
+    Branch : [main]
+  Pull Request:
+    Branch : [main]
 jobs:
-  
+  runs-on: Alexsys Runner
+  strategy:
+      matrix:
+        service: [microservices1, microservices2]
 
-  build-push:
-    runs-on: self-hosted
+  Lint Test: 
+    steps: 
+      - name: checkout the code 
+        uses: actions/checkout@v4
+      - name: Set Up Node.js
+        uses: actions/setup-node@v4
+      - name: Install Dependencies
+        run: |
+          cd ${{ matrix.service }}
+          npm install
+      - name: Build Node Project
+        run: |
+          cd ${{ matrix.service}}
+          npm ci
+      - name: linting
+        run: |
+          cd ${{ matrix.service}}
+          npm run lint
+      - name: testing
+        run: |
+          cd ${{ matrix.service}}
+          npm run test
+  Build:
+    name: docker build & deploy
+    needs: Lint Test
     steps:
       - uses: actions/checkout@v3
 
@@ -27,3 +52,4 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
+        
