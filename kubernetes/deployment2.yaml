@@ -16,4 +16,4 @@ spec:
       - name: microservice2
         image: mar26mal33oua00liki/microservices2:latest
         ports:
-        - containerPort: 3000
+        - containerPort: 3002

@@ -17,4 +17,4 @@ spec:
         image: mar26mal33oua00liki/microservices1:latest
 
         ports:
-        - containerPort: 3000
+        - containerPort: 3001
