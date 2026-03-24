@@ -29,6 +29,8 @@ jobs:
         run: |
           cd ${{ matrix.service }}
           npm run test
+          
+
   Build:
     name: docker build & deploy
     needs: lint_test
@@ -48,6 +50,22 @@ jobs:
 
       - name: Build and Push microservices2
         run: |
+<<<<<<< HEAD
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
         
+=======
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/apprentissage/microservices2:latest ./microservices2
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/apprentissage/microservices2:latest
+  deploy:
+    runs-on: self-hosted
+    needs: build
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f kubernetes/        
+>>>>>>> f3fc610 (minikube config)
