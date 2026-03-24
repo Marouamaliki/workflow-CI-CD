@@ -31,8 +31,8 @@ jobs:
           npm run test
           
 
-  Build:
-    name: docker build & deploy
+
+  build:
     needs: lint_test
     runs-on: self-hosted
     steps:
@@ -52,8 +52,7 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
-        
-  deploy:
+
     runs-on: self-hosted
     needs: build
 
@@ -63,5 +62,4 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f kubernetes/        
-
+          kubectl apply -f kubernetes/       
