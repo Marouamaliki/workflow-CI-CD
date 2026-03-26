@@ -15,6 +15,6 @@ spec:
       containers:
       - name: microservice1
         image: mar26mal33oua00liki/microservices1:latest
-
+        imagePullPolicy: Always
         ports:
         - containerPort: 3001
