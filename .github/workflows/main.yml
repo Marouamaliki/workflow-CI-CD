@@ -29,24 +29,50 @@ jobs:
         run: |
           cd ${{ matrix.service }}
           npm run test
-  sast_test:
-    name: Semgrep Security Scan
+
+  code_ql:
     needs: lint_test
     runs-on: self-hosted
-    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-    container:
-      image: semgrep/semgrep
-    env:
-      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    permissions:
+      # required for all workflows
+      security-events: write
+
+      # required to fetch internal or private CodeQL packs
+      packages: read
+
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+    strategy:
+        fail-fast: false
+        matrix:
+          include:
+          - language: actions
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
     steps:
-      - name: checkout the code 
-        uses: actions/checkout@v4
-      
-      - name: Run Semgrep CI
-        run: semgrep ci
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+
+  snyk_scan_sca:
+    needs: lint_test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@master
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/maven@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
       
   build:
-    needs: sast_test
+    needs: code_ql
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
