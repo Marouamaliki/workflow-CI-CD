@@ -61,7 +61,7 @@ jobs:
         build-mode: ${{ matrix.build-mode }}
 
   snyk_scan_sca:
-    needs: lint_test
+    needs: code_ql
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@master
@@ -72,7 +72,7 @@ jobs:
 
       
   build:
-    needs: code_ql
+    needs: [code_ql,snyk_scan_sca]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
