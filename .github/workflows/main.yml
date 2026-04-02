@@ -80,7 +80,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-         args: --all-projects  --severity-threshold=critical
+         args: "--all-projects  --severity-threshold=critical --severity-threshold=high"
       
   build:
     needs: [sast_test,snyk_scan_sca]
