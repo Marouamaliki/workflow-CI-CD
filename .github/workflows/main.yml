@@ -30,38 +30,48 @@ jobs:
           cd ${{ matrix.service }}
           npm run test
 
-  code_ql:
+  sast_test:
     needs: lint_test
     runs-on: self-hosted
-    permissions:
-      # required for all workflows
-      security-events: write
-
-      # required to fetch internal or private CodeQL packs
-      packages: read
-
-      # only required for workflows in private repositories
-      actions: read
-      contents: read
-    strategy:
-        fail-fast: false
-        matrix:
-          include:
-          - language: actions
-            build-mode: none
-          - language: javascript-typescript
-            build-mode: none
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
+      - name: checkout the code 
+        uses: actions/checkout@v4
+      - name: Install Stable Sonar Scanner (Manual)
+        run: |
+          wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
+          echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
+
+      - name: Install Stable Sonar Scanner (Manual)
+        run: |
+          if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
+            wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+            unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
+          fi
+          echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
+
+      - name: Run SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          # On utilise les variables d'env directement
+          sonar-scanner \
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.token=$SONAR_TOKEN \
+            -Dsonar.projectKey=CI-CD-PIPELINE \
+            -Dsonar.sources=. \
+            -Dsonar.exclusions=**/node_modules/**,**/dist/** \
+            -X
+        continue-on-error: false #pipeline stop in case of thechnical error not a vulnerability
+      - name: Quality Gate Check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   snyk_scan_sca:
-    needs: code_ql
+    needs: sast_test
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@master
@@ -70,10 +80,10 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-         args: --all-projects
+         args: --all-projects  --severity-threshold=critical
       
   build:
-    needs: [code_ql,snyk_scan_sca]
+    needs: [sast_test,snyk_scan_sca]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
