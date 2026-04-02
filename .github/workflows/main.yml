@@ -29,8 +29,8 @@ jobs:
         run: |
           cd ${{ matrix.service }}
           npm run test
-
-  sast_test:
+  sonarquebe_scan:
+    name: sonarqube_scan
     needs: lint_test
     runs-on: self-hosted
     steps:
@@ -69,48 +69,58 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  snyk_scan_sca:
-    needs: sast_test
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@master
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Upload Sonar Report
+        uses: actions/upload-artifact@v4
         with:
-         args: "--all-projects  --severity-threshold=critical --severity-threshold=high  --severity-threshold=medium --fail-on=all"
-      
-  build:
-    needs: [sast_test,snyk_scan_sca]
+          name: sonar-sast-report
+          path: sonar-report.sarif
+  semgrep_scan:
+    needs: lint_test
     runs-on: self-hosted
+    
+    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
+    container:
+      image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and Push microservices1
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
-
-      - name: Build and Push microservices2
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
-  
-  deploy:
-    runs-on: self-hosted
-    needs: build
-
-    steps:
-      - name: Checkout repo
+      - name: checkout the code 
         uses: actions/checkout@v4
-
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl apply -f kubernetes/       
+      
+      - name: Run Semgrep CI
+        run: semgrep ci
+      - name: Upload Semgrep Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sast-report
+          path: semgrep-report.sarif
+  codeql_scan:
+    needs: lint_test
+    runs-on: self-hosted
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: actions
+          build-mode: none
+        - language: javascript-typescript
+          build-mode: none
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+    - name: Upload codeql Report
+      uses: actions/upload-artifact@v4
+      with:
+          name: semgrep-sast-report
+          path: semgrep-report.sarif
+      
