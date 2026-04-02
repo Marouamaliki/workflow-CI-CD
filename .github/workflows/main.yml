@@ -66,10 +66,11 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/maven@master
+        uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
+        with:
+         args: --all-projects
       
   build:
     needs: [code_ql,snyk_scan_sca]
