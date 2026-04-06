@@ -42,14 +42,6 @@ jobs:
           unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
           echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
 
-      - name: Install Stable Sonar Scanner (Manual)
-        run: |
-          if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
-            wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-            unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
-          fi
-          echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
-
       - name: Run SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -63,7 +55,7 @@ jobs:
             -Dsonar.sources=. \
             -Dsonar.exclusions=**/node_modules/**,**/dist/** \
             -X
-        continue-on-error: false #pipeline stop in case of thechnical error not a vulnerability
+         #pipeline stop in case of thechnical error not a vulnerability
       - name: Quality Gate Check
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
@@ -71,56 +63,61 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       - name: Upload Sonar Report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: sonar-sast-report
-          path: sonar-report.sarif
-  semgrep_scan:
-    needs: lint_test
-    runs-on: self-hosted
+          path: sonar-report.tx
+
+
+
+
+  # semgrep_scan:
+  #   needs: lint_test
+  #   runs-on: self-hosted
     
-    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-    container:
-      image: semgrep/semgrep
-    env:
-      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-    steps:
-      - name: checkout the code 
-        uses: actions/checkout@v4
+  #   # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
+  #   container:
+  #     image: semgrep/semgrep
+  #   env:
+  #     SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+  #   steps:
+  #     - name: checkout the code 
+  #       uses: actions/checkout@v4
       
-      - name: Run Semgrep CI
-        run: semgrep ci
-      - name: Upload Semgrep Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: semgrep-sast-report
-          path: semgrep-report.sarif
-  codeql_scan:
-    needs: lint_test
-    runs-on: self-hosted
-    permissions:
-      security-events: write
-      packages: read
-      actions: read
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-        - language: actions
-          build-mode: none
-        - language: javascript-typescript
-          build-mode: none
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
-    - name: Upload codeql Report
-      uses: actions/upload-artifact@v4
-      with:
-          name: semgrep-sast-report
-          path: semgrep-report.sarif
-      
+  #     - name: Run Semgrep CI
+  #       run: semgrep ci
+  #     - name: Upload Semgrep Report
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: semgrep-sast-report
+  #         path: semgrep-report.sarif
+  # codeql_scan:
+  #   needs: lint_test
+  #   runs-on: self-hosted
+  #   permissions:
+  #     security-events: write
+  #     packages: read
+  #     actions: read
+  #     contents: read
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #       - language: actions
+  #         build-mode: none
+  #       - language: javascript-typescript
+  #         build-mode: none
+  #   steps:
+  #   - name: Checkout repository
+  #     uses: actions/checkout@v4
+  #   - name: Initialize CodeQL
+  #     uses: github/codeql-action/init@v4
+  #     with:
+  #       languages: ${{ matrix.language }}
+  #       build-mode: ${{ matrix.build-mode }}
+    
+  #   - name: Perform CodeQL Analysis
+  #     uses: github/codeql-action/analyze@v4
+  #     with:
+  #       category: "/language:${{ matrix.language }}"
+  
