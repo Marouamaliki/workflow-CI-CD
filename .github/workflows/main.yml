@@ -92,7 +92,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Run Semgrep CI
-        run: semgrep ci --sarif --output=semgrep-results.sarif "
+        run: semgrep ci --sarif --output=semgrep-results.sarif
      # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
       - name: Upload SARIF to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4
@@ -100,7 +100,6 @@ jobs:
         with:
           sarif_file: 'semgrep-results.sarif'
 
-      # Cette étape crée l'artefact téléchargeable (.zip)
       - name: Upload Semgrep Artifact
         uses: actions/upload-artifact@v4
         if: always()
