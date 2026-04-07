@@ -36,12 +36,6 @@ jobs:
     steps:
       - name: checkout the code 
         uses: actions/checkout@v4
-      - name: Install Stable Sonar Scanner (Manual)
-        run: |
-          wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-          unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
-          echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
-
       - name: Run SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -54,6 +48,7 @@ jobs:
             -Dsonar.projectKey=CI-CD-PIPELINE \
             -Dsonar.sources=. \
             -Dsonar.exclusions=**/node_modules/**,**/dist/** \
+            > sonar-report.log 2>&1
             -X
          #pipeline stop in case of thechnical error not a vulnerability
       - name: Quality Gate Check
@@ -61,11 +56,11 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: Upload Sonar Execution Report
+      - name: Upload Sonar Artifact
         uses: actions/upload-artifact@v4
-        if: always() # Très important : on garde le rapport même si le scan échoue
+        if: always()
         with:
-          name: sonarqube-execution-report
+          name: sonarqube-report
           path: sonar-report.log
 
 
