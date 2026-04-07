@@ -85,6 +85,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    container: 
+      image: semgrep/semgrep
     
     # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
     steps:
