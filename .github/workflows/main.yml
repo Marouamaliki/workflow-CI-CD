@@ -79,62 +79,72 @@ jobs:
   #           sonar-report.log
   #           sonarqube-results.sarif
 
-  semgrep_scan:
-    needs: lint_test
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      security-events: write
-    container: 
-      image: semgrep/semgrep
-    
-    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-    steps:
-      - name: checkout the code 
-        uses: actions/checkout@v4
-      
-      - name: Run Semgrep CI
-        run: semgrep ci --sarif --output=semgrep-results.sarif
-     # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
-      - name: Upload SARIF to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() # On veut le rapport même si des failles sont trouvées
-        with:
-          sarif_file: 'semgrep-results.sarif'
-
-      - name: Upload Semgrep Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: semgrep-sast-report
-          path: semgrep-results.sarif
-  # codeql_scan:
+  # semgrep_scan:
   #   needs: lint_test
   #   runs-on: self-hosted
   #   permissions:
-  #     security-events: write
-  #     packages: read
-  #     actions: read
   #     contents: read
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #       - language: actions
-  #         build-mode: none
-  #       - language: javascript-typescript
-  #         build-mode: none
-  #   steps:
-  #   - name: Checkout repository
-  #     uses: actions/checkout@v4
-  #   - name: Initialize CodeQL
-  #     uses: github/codeql-action/init@v4
-  #     with:
-  #       languages: ${{ matrix.language }}
-  #       build-mode: ${{ matrix.build-mode }}
+  #     security-events: write
+  #   container: 
+  #     image: semgrep/semgrep
     
-  #   - name: Perform CodeQL Analysis
-  #     uses: github/codeql-action/analyze@v4
-  #     with:
-  #       category: "/language:${{ matrix.language }}"
-  
+  #   # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
+  #   steps:
+  #     - name: checkout the code 
+  #       uses: actions/checkout@v4
+      
+  #     - name: Run Semgrep CI
+  #       run: semgrep ci --sarif --output=semgrep-results.sarif
+  #    # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
+  #     - name: Upload SARIF to GitHub Security Tab
+  #       uses: github/codeql-action/upload-sarif@v4
+  #       if: always() # On veut le rapport même si des failles sont trouvées
+  #       with:
+  #         sarif_file: 'semgrep-results.sarif'
+
+  #     - name: Upload Semgrep Artifact
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: semgrep-sast-report
+  #         path: semgrep-results.sarif
+  codeql_scan:
+    needs: lint_test
+    runs-on: self-hosted
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: actions
+          build-mode: none
+        - language: javascript-typescript
+          build-mode: none
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:${{ matrix.language }}"
+        # On demande à CodeQL de générer le fichier SARIF dans un dossier 'results'
+        output: ../results
+
+    - name: Upload CodeQL Artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        # On utilise la matrice pour nommer l'artefact (ex: codeql-results-actions)
+        name: codeql-results-${{ matrix.language }}
+        path: ../results/*.sarif
