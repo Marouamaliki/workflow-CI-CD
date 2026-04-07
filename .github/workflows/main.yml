@@ -172,3 +172,9 @@ jobs:
             --all-projects
             --detection-depth=3
             --exclude=kubernetes,k8s,helm,infra,docker
+      - name: Upload Snyk Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-sca-report
+          path: snyk-report.json
