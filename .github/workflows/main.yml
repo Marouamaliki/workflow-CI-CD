@@ -153,7 +153,7 @@ jobs:
         with:
           # On ajoute 'monitor' pour mettre à jour le dashboard web
           command: monitor
-          args: --all-projects
+          args: --file=package.json --all-projects
           
       - name: Run Snyk test for Artifact
         uses: snyk/actions/node@master
