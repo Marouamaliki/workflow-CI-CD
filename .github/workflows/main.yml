@@ -49,6 +49,14 @@ jobs:
             -Dsonar.sources=. \
             -Dsonar.exclusions=**/node_modules/**,**/dist/** \
             -X > sonar-report.log 2>&1
+
+      - name: Run Trivy vulnerability scanner (SAST)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'          # 'fs' pour scanner le système de fichiers (ton code)
+          format: 'sarif'          # C'est ici qu'on définit le TYPE d'artefact
+          output: 'sonarqube-results.sarif' # Le nom du fichier qui sera créé
+          severity: 'CRITICAL,HIGH' # On ne garde que le plus important
       - name: Quality Gate Check
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
