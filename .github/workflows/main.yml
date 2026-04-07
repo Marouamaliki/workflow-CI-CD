@@ -61,12 +61,12 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: Upload Sonar Report
+      - name: Upload Sonar Execution Report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() # Très important : on garde le rapport même si le scan échoue
         with:
-          name: sonar-sast-report
-          path: sonar-report.tx
+          name: sonarqube-execution-report
+          path: sonar-report.log
 
 
 
