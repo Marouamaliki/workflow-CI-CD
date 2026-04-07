@@ -147,8 +147,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ÉTAPE 1 : Test (génère le rapport JSON)
-      # On teste EN PREMIER pour avoir un état cohérent avec le monitor
+      # ÉTAPE 1 : Test — forcé sur npm/yarn uniquement
       - name: Snyk Test for Artifact
         uses: snyk/actions/node@master
         env:
@@ -156,12 +155,13 @@ jobs:
         with:
           args: >-
             --all-projects
-            --exclude=kubernetes,docker,helm
+            --detection-depth=3
+            --exclude=kubernetes,k8s,helm,infra,docker
             --severity-threshold=medium
             --json-file-output=snyk-report.json
         continue-on-error: true
 
-      # ÉTAPE 2 : Monitor (même périmètre que le test → dashboard cohérent)
+      # ÉTAPE 2 : Monitor — exactement les mêmes args que le test
       - name: Snyk Monitor
         uses: snyk/actions/node@master
         env:
@@ -170,11 +170,5 @@ jobs:
           command: monitor
           args: >-
             --all-projects
-            --exclude=kubernetes,docker,helm
-
-      - name: Upload Snyk Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snyk-sca-report
-          path: snyk-report.json
+            --detection-depth=3
+            --exclude=kubernetes,k8s,helm,infra,docker
