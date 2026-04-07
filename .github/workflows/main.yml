@@ -113,36 +113,32 @@ jobs:
     needs: lint_test
     runs-on: self-hosted
     permissions:
-      security-events: write # Permet d'afficher les alertes dans l'onglet Security
-      actions: read          # Nécessaire pour que CodeQL accède au graphe des dépendances
-      contents: read         # Pour lire ton code source
+      security-events: write
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Initialisation du moteur CodeQL
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: 'javascript-typescript'
-          # Mode 'none' car JS/HTML ne nécessitent pas de compilation
           build-mode: none 
-          # Optionnel : active des règles plus poussées (qualité du code)
           queries: security-extended
 
-      # 2. Exécution de l'analyse sémantique
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
-          # On exporte le résultat dans un dossier parent pour l'étape d'artefact
-          output: ../results-codeql
+          # On change le chemin pour qu'il soit INTERNE au projet
+          output: results-sarif
 
-      # 3. Sauvegarde du rapport SARIF en tant qu'artefact téléchargeable
-      - name: Upload CodeQL Artifact
+      - name: Save Security Artifact
         uses: actions/upload-artifact@v4
-        if: always() # On garde le rapport même si des failles sont trouvées
+        if: always()
         with:
           name: codeql-security-report
-          path: ../results-codeql/*.sarif
+          # Plus besoin de '..', on pointe directement le dossier créé
+          path: results-sarif
