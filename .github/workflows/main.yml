@@ -141,36 +141,40 @@ jobs:
   #         name: codeql-security-report
   #         path: results-sarif
 
-  snyk_scan_sca:
-    needs: lint_test
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
+ snyk_scan_sca:
+  needs: lint_test
+  runs-on: self-hosted
+  steps:
+    - uses: actions/checkout@v4
 
-      # ÉTAPE 1 : Monitor (Mise à jour du Dashboard)
-      - name: Snyk Monitor
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-          # On retire --file et on utilise --yarn-workspaces ou juste --all-projects
-          # Snyk Node va naturellement se concentrer sur les package.json
-          args: --all-projects
+    # ÉTAPE 1 : Test (génère le rapport JSON)
+    # On teste EN PREMIER pour avoir un état cohérent avec le monitor
+    - name: Snyk Test for Artifact
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: >-
+          --all-projects
+          --exclude=kubernetes,docker,helm
+          --severity-threshold=medium
+          --json-file-output=snyk-report.json
+      continue-on-error: true
 
-      # ÉTAPE 2 : Test (Génération du rapport pour ton PFE)
-      - name: Snyk Test for Artifact
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          # On utilise --all-projects pour détecter tes microservices 1 et 2
-          args: --all-projects --severity-threshold=medium --json-file-output=snyk-report.json
-        continue-on-error: true
+    # ÉTAPE 2 : Monitor (même périmètre que le test → dashboard cohérent)
+    - name: Snyk Monitor
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        command: monitor
+        args: >-
+          --all-projects
+          --exclude=kubernetes,docker,helm
 
-      - name: Upload Snyk Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snyk-sca-report
-          path: snyk-report.json
+    - name: Upload Snyk Artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: snyk-sca-report
+        path: snyk-report.json
