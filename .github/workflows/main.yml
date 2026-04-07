@@ -79,29 +79,39 @@ jobs:
             sonar-report.log
             sonarqube-results.sarif
 
-
-
-
-  # semgrep_scan:
-  #   needs: lint_test
-  #   runs-on: self-hosted
+  semgrep_scan:
+    needs: lint_test
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
     
-  #   # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-  #   container:
-  #     image: semgrep/semgrep
-  #   env:
-  #     SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-  #   steps:
-  #     - name: checkout the code 
-  #       uses: actions/checkout@v4
+    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
+    container:
+      image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    steps:
+      - name: checkout the code 
+        uses: actions/checkout@v4
       
-  #     - name: Run Semgrep CI
-  #       run: semgrep ci
-  #     - name: Upload Semgrep Report
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: semgrep-sast-report
-  #         path: semgrep-report.sarif
+      - name: Run Semgrep CI
+        run: semgrep ci
+             semgrep scan --sarif --output=semgrep-results.sarif --config="p/default"
+     # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
+      - name: Upload SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() # On veut le rapport même si des failles sont trouvées
+        with:
+          sarif_file: 'semgrep-results.sarif'
+
+      # Cette étape crée l'artefact téléchargeable (.zip)
+      - name: Upload Semgrep Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-sast-report
+          path: semgrep-results.sarif
   # codeql_scan:
   #   needs: lint_test
   #   runs-on: self-hosted
