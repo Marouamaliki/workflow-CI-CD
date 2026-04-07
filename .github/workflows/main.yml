@@ -48,9 +48,7 @@ jobs:
             -Dsonar.projectKey=CI-CD-PIPELINE \
             -Dsonar.sources=. \
             -Dsonar.exclusions=**/node_modules/**,**/dist/** \
-            > sonar-report.log 2>&1
-            -X
-         #pipeline stop in case of thechnical error not a vulnerability
+            -X > sonar-report.log 2>&1
       - name: Quality Gate Check
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
