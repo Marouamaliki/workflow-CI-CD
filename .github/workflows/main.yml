@@ -145,21 +145,32 @@ jobs:
     needs: lint_test
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@master
-      - name: Run Snyk to check for vulnerabilities
+      - uses: actions/checkout@v4
+
+      # ÉTAPE 1 : Monitor (Mise à jour du Dashboard)
+      - name: Snyk Monitor
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          # On ajoute 'monitor' pour mettre à jour le dashboard web
           command: monitor
-          args: --file=package.json --all-projects
-          
-      - name: Run Snyk test for Artifact
+          # On retire --file et on utilise --yarn-workspaces ou juste --all-projects
+          # Snyk Node va naturellement se concentrer sur les package.json
+          args: --all-projects
+
+      # ÉTAPE 2 : Test (Génération du rapport pour ton PFE)
+      - name: Snyk Test for Artifact
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          # On garde le 'test' pour générer ton fichier JSON local
-          args: --severity-threshold=medium --json-file-output=snyk-report.json
+          # On utilise --all-projects pour détecter tes microservices 1 et 2
+          args: --all-projects --severity-threshold=medium --json-file-output=snyk-report.json
         continue-on-error: true
+
+      - name: Upload Snyk Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-sca-report
+          path: snyk-report.json
