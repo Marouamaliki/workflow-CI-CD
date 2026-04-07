@@ -57,17 +57,24 @@ jobs:
           format: 'sarif'          # C'est ici qu'on définit le TYPE d'artefact
           output: 'sonarqube-results.sarif' # Le nom du fichier qui sera créé
           severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL' # On ne garde que le plus important
+      - name: Upload SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
       - name: Quality Gate Check
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: Upload Sonar Artifact
+      - name: Upload Artifacts (Log & SARIF)
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sonarqube-report
-          path: sonar-report.log
+          name: security-scan-reports
+          path: |
+            sonar-report.log
+            trivy-results.sarif
 
 
 
