@@ -96,7 +96,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Run Semgrep CI
-        run: semgrep ci
+        run: |
              semgrep scan --sarif --output=semgrep-results.sarif --config="p/default"
      # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
       - name: Upload SARIF to GitHub Security Tab
