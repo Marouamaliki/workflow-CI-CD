@@ -87,17 +87,12 @@ jobs:
       security-events: write
     
     # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-    container:
-      image: semgrep/semgrep
-    env:
-      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
     steps:
       - name: checkout the code 
         uses: actions/checkout@v4
       
       - name: Run Semgrep CI
-        run: |
-             semgrep scan --sarif --output=semgrep-results.sarif --config="p/default"
+        run: semgrep ci --sarif --output=semgrep-results.sarif "
      # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
       - name: Upload SARIF to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4
