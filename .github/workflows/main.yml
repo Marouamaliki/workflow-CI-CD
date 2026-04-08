@@ -152,20 +152,19 @@ jobs:
         run: |
           # Création des répertoires de travail
           mkdir -p ${{ github.workspace }}/reports
-          mkdir -p /home/alexsys/odc_cache/data # Dossier persistant sur ton runner
-          
+          mkdir -p /home/alexsys/odc_cache/data
+
           docker run --rm \
-            -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
             -v ${{ github.workspace }}:/src \
             -v ${{ github.workspace }}/reports:/report \
             -v /home/alexsys/odc_cache/data:/usr/share/dependency-check/data \
             owasp/dependency-check \
             --scan /src \
-            --format SARIF \
-            --format HTML \
+            --format "SARIF" \
+            --format "HTML" \
             --out /report \
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
-            --nodeAuditSkip \
+            --disableNodeAudit \
             --failOnCVSS 7
 
       - name: Upload SARIF to GitHub
