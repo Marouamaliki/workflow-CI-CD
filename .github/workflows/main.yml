@@ -29,7 +29,7 @@ jobs:
         run: |
           cd ${{ matrix.service }}
           npm run test
-  # sonarquebe_scan:
+    # sonarquebe_scan:
   #   name: sonarqube_scan
   #   needs: lint_test
   #   runs-on: self-hosted
