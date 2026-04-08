@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" 
+    directory: "/microservices1"  
+    security-updates-only: true
+         
+
+  - package-ecosystem: "npm" 
+    directory: "/microservices2"         
+    security-updates-only: true

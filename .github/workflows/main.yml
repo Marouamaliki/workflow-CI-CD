@@ -205,12 +205,5 @@ jobs:
         if: always() # Pour voir les résultats même si le scan échoue
         with:
           sarif_file: reports/dependency-check-report.sarif
-  # dependabot_scan:
-  #   runs-on: self-hosted
-  #   needs: lint_test
-  #   permissions:
-  #     contents: write
-  #     pull-requests: write
-  #   steps:
 
       
