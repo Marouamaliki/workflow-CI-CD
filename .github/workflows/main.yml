@@ -141,40 +141,70 @@ jobs:
   #         name: codeql-security-report
   #         path: results-sarif
 
-  snyk_scan_sca:
-    needs: lint_test
-    runs-on: self-hosted
+  # snyk_scan_sca:
+  #   needs: lint_test
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+      
+  #     - name: Snyk Test for Artifact
+  #       uses: snyk/actions/node@master
+  #       env:
+  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #       with:
+  #         args: >-
+  #           --all-projects
+  #           --detection-depth=3
+  #           --exclude=kubernetes,k8s,helm,infra,docker
+  #           --severity-threshold=medium
+  #           --json-file-output=snyk-report.json
+  #       continue-on-error: true
+
+      
+  #     - name: Snyk Monitor
+  #       uses: snyk/actions/node@master
+  #       env:
+  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #       with:
+  #         command: monitor
+  #         args: >-
+  #           --all-projects
+  #           --detection-depth=3
+  #           --exclude=kubernetes,k8s,helm,infra,docker
+  #     - name: Upload Snyk Artifact
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: snyk-sca-report
+  #         path: snyk-report.json
+  dependency-check:
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run OWASP Dependency Check
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/src \
+            owasp/dependency-check \
+            --scan /src \
+            --format JSON \
+            --format HTML \
+            --out /report \
+            --failOnCVSS 7 \
 
-      # ÉTAPE 1 : Test — forcé sur npm/yarn uniquement
-      - name: Snyk Test for Artifact
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: >-
-            --all-projects
-            --detection-depth=3
-            --exclude=kubernetes,k8s,helm,infra,docker
-            --severity-threshold=medium
-            --json-file-output=snyk-report.json
-        continue-on-error: true
+      - name: Install SARIF tool
+        run: npm install -g @microsoft/sarif-multitool
 
-      # ÉTAPE 2 : Monitor — exactement les mêmes args que le test
-      - name: Snyk Monitor
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Convert to SARIF
+        run: |
+          sarif-multitool convert \
+          dependency-check-report.json \
+          --output dependency-check-report.sarif
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          command: monitor
-          args: >-
-            --all-projects
-            --detection-depth=3
-            --exclude=kubernetes,k8s,helm,infra,docker
-      - name: Upload Snyk Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snyk-sca-report
-          path: snyk-report.json
+          sarif_file: dependency-check-report.sarif
