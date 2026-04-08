@@ -178,33 +178,39 @@ jobs:
   #       with:
   #         name: snyk-sca-report
   #         path: snyk-report.json
+
   dependency-check:
     runs-on: ubuntu-latest
     needs: lint_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Run OWASP Dependency Check
         run: |
+          # On crée un dossier pour les rapports pour éviter les problèmes de droits
+          mkdir -p ${{ github.workspace }}/reports
           docker run --rm \
             -v ${{ github.workspace }}:/src \
+            -v ${{ github.workspace }}/reports:/report \
             owasp/dependency-check \
             --scan /src \
-            --format JSON \
+            --format SARIF \
             --format HTML \
             --out /report \
-            --failOnCVSS 7 \
-
-      - name: Install SARIF tool
-        run: npm install -g @microsoft/sarif-multitool
-
-      - name: Convert to SARIF
-        run: |
-          sarif-multitool convert \
-          dependency-check-report.json \
-          --output dependency-check-report.sarif
+            --failOnCVSS 7
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
+        if: always() # Pour voir les résultats même si le scan échoue
         with:
-          sarif_file: dependency-check-report.sarif
+          sarif_file: reports/dependency-check-report.sarif
+  # dependabot_scan:
+  #   runs-on: self-hosted
+  #   needs: lint_test
+  #   permissions:
+  #     contents: write
+  #     pull-requests: write
+  #   steps:
+
+      
