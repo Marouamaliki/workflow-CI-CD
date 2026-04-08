@@ -179,30 +179,36 @@ jobs:
   #         name: snyk-sca-report
   #         path: snyk-report.json
 
-  dependency-check:
-    runs-on: ubuntu-latest
+   owasp dependency_check:
     needs: lint_test
+    runs-on: self-hosted 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run OWASP Dependency Check
+      - name: Run OWASP DC with NVD API & Cache
         run: |
-          # On crée un dossier pour les rapports pour éviter les problèmes de droits
+          # Création des répertoires de travail
           mkdir -p ${{ github.workspace }}/reports
+          mkdir -p /home/alexsys/odc_cache/data # Dossier persistant sur ton runner
+          
           docker run --rm \
+            -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
             -v ${{ github.workspace }}:/src \
             -v ${{ github.workspace }}/reports:/report \
+            -v /home/alexsys/odc_cache/data:/usr/share/dependency-check/data \
             owasp/dependency-check \
             --scan /src \
             --format SARIF \
             --format HTML \
             --out /report \
+            --nvdApiKey ${{ secrets.NVD_API_KEY }} \
+            --nodeAuditSkip \
             --failOnCVSS 7
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
-        if: always() # Pour voir les résultats même si le scan échoue
+        if: always()
         with:
           sarif_file: reports/dependency-check-report.sarif
 
