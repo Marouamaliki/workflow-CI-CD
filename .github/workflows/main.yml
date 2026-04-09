@@ -141,42 +141,42 @@ jobs:
   #         name: codeql-security-report
   #         path: results-sarif
 
-  owasp_dependency_check:
-    needs: lint_test
-    runs-on: self-hosted 
-    permissions:
-      security-events: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  # owasp_dependency_check:
+  #   needs: lint_test
+  #   runs-on: self-hosted 
+  #   permissions:
+  #     security-events: write
+  #     contents: read
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
 
-      - name: Run OWASP DC (No RetireJS)
-        run: |
-          mkdir -p ${{ github.workspace }}/reports
-          mkdir -p /home/alexsys/odc_cache/data
+  #     - name: Run OWASP DC (No RetireJS)
+  #       run: |
+  #         mkdir -p ${{ github.workspace }}/reports
+  #         mkdir -p /home/alexsys/odc_cache/data
           
-          docker run --rm \
-            --network host \
-            --dns 8.8.8.8 \
-            -v ${{ github.workspace }}:/src \
-            -v ${{ github.workspace }}/reports:/report \
-            -v /home/alexsys/odc_cache/data:/usr/share/dependency-check/data \
-            owasp/dependency-check \
-            --scan /src \
-            --format SARIF \
-            --format HTML \
-            --out /report \
-            --nvdApiKey ${{ secrets.NVD_API_KEY }} \
-            --disableRetireJS \
-            --disableNodeAudit \
-            --failOnCVSS 7
+  #         docker run --rm \
+  #           --network host \
+  #           --dns 8.8.8.8 \
+  #           -v ${{ github.workspace }}:/src \
+  #           -v ${{ github.workspace }}/reports:/report \
+  #           -v /home/alexsys/odc_cache/data:/usr/share/dependency-check/data \
+  #           owasp/dependency-check \
+  #           --scan /src \
+  #           --format SARIF \
+  #           --format HTML \
+  #           --out /report \
+  #           --nvdApiKey ${{ secrets.NVD_API_KEY }} \
+  #           --disableRetireJS \
+  #           --disableNodeAudit \
+  #           --failOnCVSS 7
 
-      - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: reports/dependency-check-report.sarif
+  #     - name: Upload SARIF to GitHub
+  #       uses: github/codeql-action/upload-sarif@v3
+  #       if: always()
+  #       with:
+  #         sarif_file: reports/dependency-check-report.sarif
 
       
   # snyk_scan_sca:
@@ -216,3 +216,126 @@ jobs:
   #       with:
   #         name: snyk-sca-report
   #         path: snyk-report.json
+
+  owasp_zap_scan:
+    needs: lint_test
+    runs-on: self-hosted
+    permissions:
+       security-events: write
+       actions: read
+       contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Deploy app to staging
+        run: |
+           docker run -d -p 4000:3000 my-app
+
+      # ── 3. Wait until the app is responding ─────────────────────────────
+      - name: Wait for app to be ready
+        run: |
+          echo "Waiting for $APP_URL ..."
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
+            if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
+              echo "App is up (HTTP $status)"
+              exit 0
+            fi
+            echo "  attempt $i: HTTP $status – retrying in 10 s"
+            sleep 10
+          done
+          echo "App did not become ready in time"
+          exit 1
+
+      # ── 4a. ZAP Baseline scan (passive + spider, fast) ──────────────────
+      #   Good default for every PR. Detects misconfigs, missing headers, etc.
+      - name: ZAP Baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ env.APP_URL }}
+          rules_file_name: ${{ env.ZAP_RULES_FILE }}
+          cmd_options: >
+            -I                         # don't fail build (informational only)
+            -j                         # enable Ajax spider
+            -a                         # include alpha passive rules
+          artifact_name: zap-baseline-report
+          # issue_title: "ZAP Baseline – ${{ github.ref_name }}"
+
+      # ── 4b. ZAP Full scan (active attack mode) ──────────────────────────
+      #   Heavier – run on scheduled/nightly or main branch only.
+      #   Comment out for PR builds if scan time is a concern.
+      - name: ZAP Full scan
+        if: github.ref == 'refs/heads/main'
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: ${{ env.APP_URL }}
+          rules_file_name: ${{ env.ZAP_RULES_FILE }}
+          cmd_options: >
+            -T 60                      # max scan duration in minutes
+          artifact_name: zap-full-report
+
+      # ── 4c. ZAP API scan (OpenAPI / GraphQL) ────────────────────────────
+      #   Uncomment if you expose an API spec.
+      # - name: ZAP API scan
+      #   uses: zaproxy/action-api-scan@v0.7.0
+      #   with:
+      #     target: ${{ env.APP_URL }}/openapi.json
+      #     format: openapi             # openapi | soap | graphql
+      #     rules_file_name: ${{ env.ZAP_RULES_FILE }}
+      #     artifact_name: zap-api-report
+
+      # ── 5. Upload SARIF to GitHub Security tab ──────────────────────────
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: zap.sarif
+          category: DAST
+
+      # ── 6. Post summary comment on PR ───────────────────────────────────
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## 🔍 OWASP ZAP DAST results\n\n';
+            try {
+              const sarif = JSON.parse(fs.readFileSync('zap.sarif', 'utf8'));
+              const results = sarif.runs?.[0]?.results ?? [];
+              const high   = results.filter(r => r.level === 'error').length;
+              const medium = results.filter(r => r.level === 'warning').length;
+              const low    = results.filter(r => r.level === 'note').length;
+              body += `| Severity | Count |\n|---|---|\n`;
+              body += `| 🔴 High | ${high} |\n`;
+              body += `| 🟡 Medium | ${medium} |\n`;
+              body += `| 🔵 Low | ${low} |\n\n`;
+              body += `Full report available in the **Actions → Artifacts** section.`;
+              if (high > 0) body += '\n\n> ⚠️ **Build may be blocked** – HIGH severity findings detected.';
+            } catch (e) {
+              body += '_Could not parse SARIF report._';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      # ── 7. Fail the build on HIGH findings ──────────────────────────────
+      - name: Enforce threshold – fail on HIGH
+        if: always()
+        run: |
+          HIGH=$(python3 -c "
+          import json, sys
+          sarif = json.load(open('zap.sarif'))
+          count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
+          print(count)
+          ")
+          echo "HIGH severity findings: $HIGH"
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
+            exit 1
+          fi

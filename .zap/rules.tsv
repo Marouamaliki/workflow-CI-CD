@@ -1,0 +1,13 @@
+# .zap/rules.tsv
+# Format: rule_id  IGNORE|WARN|FAIL  optional_reason
+#
+# Find rule IDs in the ZAP HTML report or at:
+# https://www.zaproxy.org/docs/alerts/
+#
+# Common suppressions:
+
+10020	IGNORE	CSP header managed by CDN layer, not app
+10035	IGNORE	Strict-Transport-Security set at load balancer
+10054	IGNORE	Cookie without SameSite – legacy session cookie, tracked in backlog
+10055	IGNORE	CSP wildcard – reviewed, acceptable for static assets CDN
+90033	IGNORE	Loosely scoped cookie domain – by design for SSO subdomain sharing
