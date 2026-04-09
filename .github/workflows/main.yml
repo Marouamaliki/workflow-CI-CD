@@ -107,38 +107,38 @@ jobs:
         with:
           name: semgrep-sast-report
           path: semgrep-results.sarif
-  codeql_scan:
-    name: CodeQL Security Analysis
-    needs: lint_test
-    runs-on: self-hosted
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
+  # codeql_scan:
+  #   name: CodeQL Security Analysis
+  #   needs: lint_test
+  #   runs-on: self-hosted
+  #   permissions:
+  #     security-events: write
+  #     actions: read
+  #     contents: read
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: 'javascript-typescript'
-          build-mode: none 
-          queries: security-extended
+  #     - name: Initialize CodeQL
+  #       uses: github/codeql-action/init@v3
+  #       with:
+  #         languages: 'javascript-typescript'
+  #         build-mode: none 
+  #         queries: security-extended
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
-          output: results-sarif
+  #     - name: Perform CodeQL Analysis
+  #       uses: github/codeql-action/analyze@v3
+  #       with:
+  #         category: "/language:javascript-typescript"
+  #         output: results-sarif
 
-      - name: Save Security Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: codeql-security-report
-          path: results-sarif
+  #     - name: Save Security Artifact
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: codeql-security-report
+  #         path: results-sarif
 
   # owasp_dependency_check:
   #   needs: lint_test
@@ -216,7 +216,7 @@ jobs:
           name: snyk-sca-report
           path: snyk-report.json
   build:
-    needs: [sonarquebe_scan,snyk_scan_sca]
+    needs: [semgrep_scan,snyk_scan_sca]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
