@@ -29,116 +29,116 @@ jobs:
         run: |
           cd ${{ matrix.service }}
           npm run test
-  sonarquebe_scan:
+  # sonarquebe_scan:
+  #   needs: lint_test
+  #   runs-on: self-hosted
+  #   permissions:
+  #     contents: read
+  #     security-events: write
+  #   steps:
+  #     - name: checkout the code 
+  #       uses: actions/checkout@v4
+  #     - name: Run SonarQube Scan
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  #       run: |
+  #         # On utilise les variables d'env directement
+  #         sonar-scanner \
+  #           -Dsonar.host.url=$SONAR_HOST_URL \
+  #           -Dsonar.token=$SONAR_TOKEN \
+  #           -Dsonar.projectKey=CI-CD-PIPELINE \
+  #           -Dsonar.sources=. \
+  #           -Dsonar.exclusions=**/node_modules/**,**/dist/** \
+  #           -X > sonar-report.log 2>&1
+
+  #     - name: Run Trivy vulnerability scanner (SAST)
+  #       uses: aquasecurity/trivy-action@master
+  #       with:
+  #         scan-type: 'fs'          # 'fs' pour scanner le système de fichiers (ton code)
+  #         format: 'sarif'          # C'est ici qu'on définit le TYPE d'artefact
+  #         output: 'sonarqube-results.sarif' # Le nom du fichier qui sera créé
+  #         severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL' # On ne garde que le plus important
+  #     - name: Upload SARIF to GitHub Security Tab
+  #       uses: github/codeql-action/upload-sarif@v3
+  #       if: always()
+  #       with:
+  #         sarif_file: 'sonarqube-results.sarif'
+  #     - name: Quality Gate Check
+  #       uses: sonarsource/sonarqube-quality-gate-action@master
+  #       timeout-minutes: 5
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     - name: Upload Artifacts (Log & SARIF)
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: security-scan-reports
+  #         path: |
+  #           sonar-report.log
+  #           sonarqube-results.sarif
+
+  semgrep_scan:
     needs: lint_test
     runs-on: self-hosted
     permissions:
       contents: read
       security-events: write
+    container: 
+      image: semgrep/semgrep
+    
+    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
     steps:
       - name: checkout the code 
         uses: actions/checkout@v4
-      - name: Run SonarQube Scan
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: |
-          # On utilise les variables d'env directement
-          sonar-scanner \
-            -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.token=$SONAR_TOKEN \
-            -Dsonar.projectKey=CI-CD-PIPELINE \
-            -Dsonar.sources=. \
-            -Dsonar.exclusions=**/node_modules/**,**/dist/** \
-            -X > sonar-report.log 2>&1
-
-      - name: Run Trivy vulnerability scanner (SAST)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'          # 'fs' pour scanner le système de fichiers (ton code)
-          format: 'sarif'          # C'est ici qu'on définit le TYPE d'artefact
-          output: 'sonarqube-results.sarif' # Le nom du fichier qui sera créé
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL' # On ne garde que le plus important
+      
+      - name: Run Semgrep CI
+        run: semgrep ci --sarif --output=semgrep-results.sarif
+     # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
       - name: Upload SARIF to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() # On veut le rapport même si des failles sont trouvées
         with:
-          sarif_file: 'sonarqube-results.sarif'
-      - name: Quality Gate Check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: Upload Artifacts (Log & SARIF)
+          sarif_file: 'semgrep-results.sarif'
+
+      - name: Upload Semgrep Artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: security-scan-reports
-          path: |
-            sonar-report.log
-            sonarqube-results.sarif
+          name: semgrep-sast-report
+          path: semgrep-results.sarif
+  codeql_scan:
+    name: CodeQL Security Analysis
+    needs: lint_test
+    runs-on: self-hosted
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
 
-  # semgrep_scan:
-  #   needs: lint_test
-  #   runs-on: self-hosted
-  #   permissions:
-  #     contents: read
-  #     security-events: write
-  #   container: 
-  #     image: semgrep/semgrep
-    
-  #   # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-  #   steps:
-  #     - name: checkout the code 
-  #       uses: actions/checkout@v4
-      
-  #     - name: Run Semgrep CI
-  #       run: semgrep ci --sarif --output=semgrep-results.sarif
-  #    # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
-  #     - name: Upload SARIF to GitHub Security Tab
-  #       uses: github/codeql-action/upload-sarif@v4
-  #       if: always() # On veut le rapport même si des failles sont trouvées
-  #       with:
-  #         sarif_file: 'semgrep-results.sarif'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  #     - name: Upload Semgrep Artifact
-  #       uses: actions/upload-artifact@v4
-  #       if: always()
-  #       with:
-  #         name: semgrep-sast-report
-  #         path: semgrep-results.sarif
-  # codeql_scan:
-  #   name: CodeQL Security Analysis
-  #   needs: lint_test
-  #   runs-on: self-hosted
-  #   permissions:
-  #     security-events: write
-  #     actions: read
-  #     contents: read
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'javascript-typescript'
+          build-mode: none 
+          queries: security-extended
 
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+          output: results-sarif
 
-  #     - name: Initialize CodeQL
-  #       uses: github/codeql-action/init@v3
-  #       with:
-  #         languages: 'javascript-typescript'
-  #         build-mode: none 
-  #         queries: security-extended
-
-  #     - name: Perform CodeQL Analysis
-  #       uses: github/codeql-action/analyze@v3
-  #       with:
-  #         category: "/language:javascript-typescript"
-  #         output: results-sarif
-
-  #     - name: Save Security Artifact
-  #       uses: actions/upload-artifact@v4
-  #       if: always()
-  #       with:
-  #         name: codeql-security-report
-  #         path: results-sarif
+      - name: Save Security Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-security-report
+          path: results-sarif
 
   # owasp_dependency_check:
   #   needs: lint_test
