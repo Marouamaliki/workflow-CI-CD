@@ -35,37 +35,36 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      security-events: write  # OBLIGATOIRE pour l'upload SARIF
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Obligatoire pour SonarCloud (analyse blame/historique)
+          fetch-depth: 0
 
       - name: Run SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0 
+        with:
+          args: >
+            -Dsonar.sarifReportPaths=sonarcloud-results.sarif
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io   
+          SONAR_HOST_URL: https://sonarcloud.io 
 
       - name: Quality Gate Check
-        uses: sonarsource/sonarqube-quality-gate-action@master
+        # Passage en version stable v2
+        uses: sonarsource/sonarqube-quality-gate-action@v2.1.0
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
       - name: Upload SARIF to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v3
+        # Mise à jour vers v4 pour éviter la dépréciation
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: sonarcloud-results.sarif
-
-      - name: Upload sonarcloud Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: sonarcloud-results-report
-          path: sonarcloud-results.sarif 
 
   # semgrep_scan:
   #     needs: lint_test
