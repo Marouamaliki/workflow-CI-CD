@@ -310,7 +310,7 @@ jobs:
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
 
   scan_iac:
-    needs: build
+    needs: push_image
     runs-on: self-hosted
 
     permissions:
