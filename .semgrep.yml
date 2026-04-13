@@ -1,0 +1,14 @@
+# Limiter les règles aux plus importantes (évite de tout scanner)
+rules: []  # Géré depuis Semgrep Cloud
+
+# Exclure les dossiers inutiles
+paths:
+  exclude:
+    - "node_modules/**"
+    - "vendor/**"
+    - "dist/**"
+    - "build/**"
+    - ".git/**"
+    - "**/*.test.*"
+    - "**/*.spec.*"
+    - "**/migrations/**"

@@ -79,34 +79,52 @@ jobs:
   #           sonarqube-results.sarif
 
   semgrep_scan:
-    needs: lint_test
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      security-events: write
-    container: 
-      image: semgrep/semgrep
-    
-    # On utilise l'image Docker officielle pour éviter les problèmes d'install Python
-    steps:
-      - name: checkout the code 
-        uses: actions/checkout@v4
-      
-      - name: Run Semgrep CI
-        run: semgrep ci --sarif --output=semgrep-results.sarif
-     # Cette étape "pousse" le rapport vers l'onglet Security de GitHub
-      - name: Upload SARIF to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() # On veut le rapport même si des failles sont trouvées
-        with:
-          sarif_file: 'semgrep-results.sarif'
+      needs: lint_test
+      runs-on: self-hosted
+      permissions:
+        contents: read
+        security-events: write
+      container:
+        image: semgrep/semgrep
 
-      - name: Upload Semgrep Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: semgrep-sast-report
-          path: semgrep-results.sarif
+      steps:
+        - name: checkout the code
+          uses: actions/checkout@v4
+          with:
+            # Fetch complet nécessaire pour le diff scanning
+            fetch-depth: 0
+
+        - name: Cache Semgrep rules
+          uses: actions/cache@v4
+          with:
+            path: ~/.semgrep/cache
+            key: semgrep-${{ runner.os }}-${{ hashFiles('.semgrep.yml', '.semgrep/**') }}
+            restore-keys: |
+              semgrep-${{ runner.os }}-
+
+        - name: Run Semgrep CI
+          run: semgrep ci --sarif --output=semgrep-results.sarif
+          env:
+            SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+            # Diff scanning : scan seulement les fichiers modifiés sur PR
+            SEMGREP_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
+            # Parallélisme selon les CPUs du runner
+            SEMGREP_JOBS: 4
+            # Cache des règles Semgrep
+            SEMGREP_RULES_CACHE_PATH: ~/.semgrep/cache
+
+        - name: Upload SARIF to GitHub Security Tab
+          uses: github/codeql-action/upload-sarif@v3
+          if: always()
+          with:
+            sarif_file: semgrep-results.sarif
+
+        - name: Upload Semgrep Artifact
+          uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: semgrep-sast-report
+            path: semgrep-results.sarif
   # codeql_scan:
   #   name: CodeQL Security Analysis
   #   needs: lint_test
@@ -226,15 +244,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push microservices1
+      - name: Build microservices1
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
 
-      - name: Build and Push microservices2
+
+      - name: Build microservices2
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
+  
   #scan Container/image/Iac:
   scan_docker_images:
     needs: build
@@ -273,8 +291,25 @@ jobs:
             echo "::error::Critical vulnerabilities found in ${{ matrix.image }}"
             exit 1
           fi
+  push_image:
+    needs: scan_docker_images
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push microservices1
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
+
+      - name: Push microservices2
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
+
   scan_iac:
-    name: IaC Security Scan (Checkov)
     needs: build
     runs-on: self-hosted
 
