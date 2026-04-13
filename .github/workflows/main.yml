@@ -246,15 +246,12 @@ jobs:
       security-events: write
     strategy:
       matrix:
-        image:
-          - microservices1
-          - microservices2
+        image: [microservices1, microservices2]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest
           format: sarif
@@ -263,6 +260,7 @@ jobs:
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
           sarif_file: trivy-${{ matrix.image }}.sarif
           category: container-${{ matrix.image }}
@@ -275,6 +273,7 @@ jobs:
             echo "::error::Critical vulnerabilities found in ${{ matrix.image }}"
             exit 1
           fi
+            fi
   push_image:
     needs: scan_docker_images
     runs-on: self-hosted
