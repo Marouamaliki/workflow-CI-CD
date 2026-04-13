@@ -54,12 +54,18 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
-      - name: Upload Sonar Log Artifact
+      - name: Upload SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: sonarcloud-results.sarif
+
+      - name: Upload sonarcloud Artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sonarcloud-report
-          path: .scannerwork/report-task.txt
+          name: sonarcloud-results-report
+          path: sonarcloud-results.sarif 
 
   # semgrep_scan:
   #     needs: lint_test
