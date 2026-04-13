@@ -29,102 +29,83 @@ jobs:
         run: |
           cd ${{ matrix.service }}
           npm run test
-  # sonarquebe_scan:
-  #   needs: lint_test
-  #   runs-on: self-hosted
-  #   permissions:
-  #     contents: read
-  #     security-events: write
-  #   steps:
-  #     - name: checkout the code 
-  #       uses: actions/checkout@v4
-  #     - name: Run SonarQube Scan
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-  #       run: |
-  #         # On utilise les variables d'env directement
-  #         sonar-scanner \
-  #           -Dsonar.host.url=$SONAR_HOST_URL \
-  #           -Dsonar.token=$SONAR_TOKEN \
-  #           -Dsonar.projectKey=CI-CD-PIPELINE \
-  #           -Dsonar.sources=. \
-  #           -Dsonar.exclusions=**/node_modules/**,**/dist/** \
-  #           -X > sonar-report.log 2>&1
+  sonarcloud_scan:
+    needs: lint_test
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Obligatoire pour SonarCloud (analyse blame/historique)
 
-  #     - name: Run Trivy vulnerability scanner (SAST)
-  #       uses: aquasecurity/trivy-action@master
-  #       with:
-  #         scan-type: 'fs'          # 'fs' pour scanner le système de fichiers (ton code)
-  #         format: 'sarif'          # C'est ici qu'on définit le TYPE d'artefact
-  #         output: 'sonarqube-results.sarif' # Le nom du fichier qui sera créé
-  #         severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL' # On ne garde que le plus important
-  #     - name: Upload SARIF to GitHub Security Tab
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       if: always()
-  #       with:
-  #         sarif_file: 'sonarqube-results.sarif'
-  #     - name: Quality Gate Check
-  #       uses: sonarsource/sonarqube-quality-gate-action@master
-  #       timeout-minutes: 5
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #     - name: Upload Artifacts (Log & SARIF)
-  #       uses: actions/upload-artifact@v4
-  #       if: always()
-  #       with:
-  #         name: security-scan-reports
-  #         path: |
-  #           sonar-report.log
-  #           sonarqube-results.sarif
+      - name: Run SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}     # Token SonarCloud
 
-  semgrep_scan:
-      needs: lint_test
-      runs-on: self-hosted
-      permissions:
-        contents: read
-        security-events: write
-      container:
-        image: semgrep/semgrep
+      - name: Quality Gate Check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      steps:
-        - name: checkout the code
-          uses: actions/checkout@v4
-          with:
-            # Fetch complet nécessaire pour le diff scanning
-            fetch-depth: 0
+      - name: Upload Sonar Log Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sonarcloud-report
+          path: .scannerwork/report-task.txt
 
-        - name: Cache Semgrep rules
-          uses: actions/cache@v4
-          with:
-            path: ~/.semgrep/cache
-            key: semgrep-${{ runner.os }}-${{ hashFiles('.semgrep.yml', '.semgrep/**') }}
-            restore-keys: |
-              semgrep-${{ runner.os }}-
+  # semgrep_scan:
+  #     needs: lint_test
+  #     runs-on: self-hosted
+  #     permissions:
+  #       contents: read
+  #       security-events: write
+  #     container:
+  #       image: semgrep/semgrep
 
-        - name: Run Semgrep CI
-          run: semgrep ci --sarif --output=semgrep-results.sarif
-          env:
-            SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-            # Diff scanning : scan seulement les fichiers modifiés sur PR
-            SEMGREP_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
-            # Parallélisme selon les CPUs du runner
-            SEMGREP_JOBS: 4
-            # Cache des règles Semgrep
-            SEMGREP_RULES_CACHE_PATH: ~/.semgrep/cache
+  #     steps:
+  #       - name: checkout the code
+  #         uses: actions/checkout@v4
+  #         with:
+  #           # Fetch complet nécessaire pour le diff scanning
+  #           fetch-depth: 0
 
-        - name: Upload SARIF to GitHub Security Tab
-          uses: github/codeql-action/upload-sarif@v3
-          if: always()
-          with:
-            sarif_file: semgrep-results.sarif
+  #       - name: Cache Semgrep rules
+  #         uses: actions/cache@v4
+  #         with:
+  #           path: ~/.semgrep/cache
+  #           key: semgrep-${{ runner.os }}-${{ hashFiles('.semgrep.yml', '.semgrep/**') }}
+  #           restore-keys: |
+  #             semgrep-${{ runner.os }}-
 
-        - name: Upload Semgrep Artifact
-          uses: actions/upload-artifact@v4
-          if: always()
-          with:
-            name: semgrep-sast-report
-            path: semgrep-results.sarif
+  #       - name: Run Semgrep CI
+  #         run: semgrep ci --sarif --output=semgrep-results.sarif
+  #         env:
+  #           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+  #           # Diff scanning : scan seulement les fichiers modifiés sur PR
+  #           SEMGREP_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
+  #           # Parallélisme selon les CPUs du runner
+  #           SEMGREP_JOBS: 4
+  #           # Cache des règles Semgrep
+  #           SEMGREP_RULES_CACHE_PATH: ~/.semgrep/cache
+
+  #       - name: Upload SARIF to GitHub Security Tab
+  #         uses: github/codeql-action/upload-sarif@v3
+  #         if: always()
+  #         with:
+  #           sarif_file: semgrep-results.sarif
+
+  #       - name: Upload Semgrep Artifact
+  #         uses: actions/upload-artifact@v4
+  #         if: always()
+  #         with:
+  #           name: semgrep-sast-report
+  #           path: semgrep-results.sarif
   # codeql_scan:
   #   name: CodeQL Security Analysis
   #   needs: lint_test
@@ -234,7 +215,7 @@ jobs:
           name: snyk-sca-report
           path: snyk-report.json
   build:
-    needs: [semgrep_scan,snyk_scan_sca]
+    needs: [sonarcloud_scan,snyk_scan_sca]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
