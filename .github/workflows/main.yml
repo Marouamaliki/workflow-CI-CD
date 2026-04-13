@@ -61,7 +61,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         continue-on-error: true  # ✅ Ne bloque pas si scan échoue
         env:
-          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
       - name: Quality Gate Check
@@ -69,7 +69,7 @@ jobs:
         continue-on-error: true  # ✅ Ne bloque pas si Quality Gate échoue
         timeout-minutes: 5
         env:
-          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
       # ✅ Génère un SARIF vide si le scan n'en a pas produit
