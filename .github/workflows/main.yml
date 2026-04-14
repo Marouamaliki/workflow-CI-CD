@@ -203,43 +203,42 @@ jobs:
   #         sarif_file: reports/dependency-check-report.sarif
 
       
-  # snyk_scan_sca:
-  #   needs: lint_test
-  #   runs-on: self-hosted
-  #   steps:
-  #     - uses: actions/checkout@v4
+  snyk_scan_sca:
+    needs: lint_test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Snyk Test for Artifact #scanner 
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >-
+            --all-projects
+            --detection-depth=3
+            --exclude=kubernetes,k8s,helm,infra,docker
+            --severity-threshold=medium
+            --json-file-output=snyk-report.json
+        continue-on-error: true
 
       
-  #     - name: Snyk Test for Artifact
-  #       uses: snyk/actions/node@master
-  #       env:
-  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-  #       with:
-  #         args: >-
-  #           --all-projects
-  #           --detection-depth=3
-  #           --exclude=kubernetes,k8s,helm,infra,docker
-  #           --severity-threshold=medium
-  #           --json-file-output=snyk-report.json
-  #       continue-on-error: true
-
-      
-  #     - name: Snyk Monitor
-  #       uses: snyk/actions/node@master
-  #       env:
-  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-  #       with:
-  #         command: monitor
-  #         args: >-
-  #           --all-projects
-  #           --detection-depth=3
-  #           --exclude=kubernetes,k8s,helm,infra,docker
-  #     - name: Upload Snyk Artifact
-  #       uses: actions/upload-artifact@v4
-  #       if: always()
-  #       with:
-  #         name: snyk-sca-report
-  #         path: snyk-report.json
+      - name: Snyk Monitor #sychroniser avec serveur cloud
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+          args: >-
+            --all-projects
+            --detection-depth=3
+            --exclude=kubernetes,k8s,helm,infra,docker
+      - name: Upload Snyk Artifact #génération des artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-sca-report
+          path: snyk-report.json
   # build:
   #   needs: [sonarcloud_scan, snyk_scan_sca]
   #   runs-on: self-hosted
