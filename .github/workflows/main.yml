@@ -220,9 +220,6 @@ jobs:
             --exclude=kubernetes,k8s,helm,infra,docker
             --severity-threshold=medium
             --json-file-output=snyk-report.json
-        continue-on-error: true
-
-      
       - name: Snyk Monitor #sychroniser avec serveur cloud
         uses: snyk/actions/node@master
         env:
@@ -239,26 +236,26 @@ jobs:
         with:
           name: snyk-sca-report
           path: snyk-report.json
-  # build:
-  #   needs: [sonarcloud_scan, snyk_scan_sca]
-  #   runs-on: self-hosted
-  #   steps:
-  #     - uses: actions/checkout@v4
+  build:
+    needs: [sonarcloud_scan, snyk_scan_sca]
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
       
-  #     - uses: docker/login-action@v3
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-  #     - name: Build & Push microservices1
-  #       run: |
-  #         docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
-  #         docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
+      - name: Build & Push microservices1
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
 
-  #     - name: Build & Push microservices2
-  #       run: |
-  #         docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
-  #         docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
+      - name: Build & Push microservices2
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
   # scan_docker_images:
   #   needs: build
   #   runs-on: self-hosted
