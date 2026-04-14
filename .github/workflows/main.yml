@@ -296,12 +296,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Checkov
-        run: pip install checkov
+      - name: Create venv
+        run: python3 -m venv venv
 
-      - name: Run Checkov scan
+      - name: Install Checkov
         run: |
-          checkov -d /kubernetes --output sarif > checkov.sarif
+          source venv/bin/activate
+          pip install checkov
+
+      - name: Run Checkov
+        run: |
+          source venv/bin/activate
+          checkov -d /kubernetes --output sarif --output-file-path checkov.sarif
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -318,17 +324,17 @@ jobs:
             exit 1
           fi
   
-  # deploy:
-  #   runs-on: self-hosted
-  #   needs: scan_iac
+  deploy:
+    runs-on: self-hosted
+    needs: scan_iac
 
-  #   steps:
-  #     - name: Checkout repo
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-  #     - name: Deploy to Kubernetes
-  #       run: |
-  #         kubectl apply -f kubernetes/ 
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f kubernetes/ 
   # zap_scan:
   #   needs: deploy
   #   runs-on: self-hosted
