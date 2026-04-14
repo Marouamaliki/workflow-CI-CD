@@ -256,50 +256,34 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
-  # scan_docker_images:
-  #   needs: build
-  #   runs-on: self-hosted
-  #   permissions:
-  #     contents: read
-  #     security-events: write
-  #   strategy:
-  #     matrix:
-  #       image: [microservices1, microservices2]
-  #   steps:
-  #     - uses: actions/checkout@v4
+  scan_docker_images:
+    needs: build
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        image: [microservices1, microservices2]
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Install Trivy directly  # ✅ Evite le téléchargement lent via l'action
-  #       run: |
-  #         wget -qO- https://github.com/aquasecurity/trivy/releases/download/v0.69.0/trivy_0.69.0_Linux-64bit.tar.gz \
-  #           | tar -xz trivy
-  #         sudo mv trivy /usr/local/bin/
+      - name: Run Trivy scan
+        run: |
+          trivy image \
+            --format sarif \
+            --output trivy-${{ matrix.image }}.sarif \
+            --severity CRITICAL,HIGH \
+            --timeout 10m \
+            --db-repository ghcr.io/aquasecurity/trivy-db \
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest || true
 
-  #     - name: Run Trivy scan
-  #       run: |
-  #         trivy image \
-  #           --format sarif \
-  #           --output trivy-${{ matrix.image }}.sarif \
-  #           --severity CRITICAL,HIGH \
-  #           --timeout 10m \
-  #           --db-repository ghcr.io/aquasecurity/trivy-db \
-  #           ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest || true
-  #       # ✅ || true : génère le SARIF même si vulnés trouvées
-  #       # ✅ --db-repository : mirror alternatif si gcr.io timeout
-  #       # ✅ --timeout 10m : évite le context deadline exceeded
-
-  #     - name: Ensure SARIF exists  # ✅ Evite "Path does not exist"
-  #       if: always()
-  #       run: |
-  #         if [ ! -f trivy-${{ matrix.image }}.sarif ]; then
-  #           echo '{"version":"2.1.0","runs":[]}' > trivy-${{ matrix.image }}.sarif
-  #         fi
-
-  #     - name: Upload SARIF
-  #       uses: github/codeql-action/upload-sarif@v4  # ✅ v3 → v4
-  #       if: always()
-  #       with:
-  #         sarif_file: trivy-${{ matrix.image }}.sarif
-  #         category: container-${{ matrix.image }}
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v4 
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: container-${{ matrix.image }}
   # scan_iac:
   #   needs: scan_docker_images
   #   runs-on: self-hosted
