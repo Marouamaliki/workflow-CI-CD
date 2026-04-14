@@ -53,6 +53,19 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
+      - name: Download SonarCloud Report
+        if: always()
+        run: |
+          curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=CI-CD-PIPELINE&organization=marouamaliki&resolved=false&ps=100" \
+            -o sonarcloud-report.json
+
+      - name: Upload SonarCloud Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarcloud-report
+          path: sonarcloud-report.json
 
       # - name: Upload SARIF to GitHub Security Tab
       #   uses: github/codeql-action/upload-sarif@v3
