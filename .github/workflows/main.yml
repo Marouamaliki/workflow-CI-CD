@@ -48,7 +48,7 @@ jobs:
               -Dsonar.projectKey=Marouamaliki_Apprentissage
               -Dsonar.organization=marouamaliki
               -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.git/**,kubernetes/**
-          env:
+        env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"  
 
