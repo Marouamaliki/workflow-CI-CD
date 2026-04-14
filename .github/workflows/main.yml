@@ -231,11 +231,14 @@ jobs:
       - name: Build microservices1
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
 
 
       - name: Build microservices2
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
+
   
   #scan Container/image/Iac:
   scan_docker_images:
@@ -276,26 +279,8 @@ jobs:
             exit 1
           fi
             fi
-  push_image:
-    needs: scan_docker_images
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Push microservices1
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
-
-      - name: Push microservices2
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
-
   scan_iac:
-    needs: push_image
+    needs: scan_docker_images
     runs-on: self-hosted
 
     permissions:
