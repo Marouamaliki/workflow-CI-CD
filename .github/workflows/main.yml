@@ -284,39 +284,39 @@ jobs:
         with:
           sarif_file: trivy-${{ matrix.image }}.sarif
           category: container-${{ matrix.image }}
-  # scan_iac:
-  #   needs: scan_docker_images
-  #   runs-on: self-hosted
+  scan_iac:
+    needs: scan_docker_images
+    runs-on: self-hosted
 
-  #   permissions:
-  #     contents: read
-  #     security-events: write
+    permissions:
+      contents: read
+      security-events: write
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Install Checkov
-  #       run: pip install checkov
+      - name: Install Checkov
+        run: pip install checkov
 
-  #     - name: Run Checkov scan
-  #       run: |
-  #         checkov -d /kubernetes --output sarif > checkov.sarif
+      - name: Run Checkov scan
+        run: |
+          checkov -d /kubernetes --output sarif > checkov.sarif
 
-  #     - name: Upload SARIF
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       with:
-  #         sarif_file: checkov.sarif
-  #         category: iac-scan
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif
+          category: iac-scan
 
-  #     - name: Fail on HIGH severity
-  #       run: |
-  #         HIGH=$(grep -c '"level":"high"' checkov.sarif || true)
-  #         echo "HIGH severity issues: $HIGH"
-  #         if [ "$HIGH" -gt 0 ]; then
-  #           echo "::error::HIGH severity IaC issues detected"
-  #           exit 1
-  #         fi
+      - name: Fail on HIGH severity
+        run: |
+          HIGH=$(grep -c '"level":"high"' checkov.sarif || true)
+          echo "HIGH severity issues: $HIGH"
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::error::HIGH severity IaC issues detected"
+            exit 1
+          fi
   
   # deploy:
   #   runs-on: self-hosted
