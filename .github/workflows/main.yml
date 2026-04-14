@@ -41,7 +41,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarqube-scan-action@v6.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -51,12 +51,18 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Upload SonarCloud Artifact
+      - name: Upload SARIF to GitHub Security Tab
+        uses: github/sonarcloud-action/upload-sarif@v3
+        if: always()
+        with:
+            sarif_file: sonarcloud-results.sarif
+
+      - name: Upload sonarcloud Artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sonarcloud-results-report
-          path: .scannerwork/report-task.txt
+            name: sonarcloud-sast-report
+            path: sonarcloud-results.sarif
   # semgrep_scan:
   #     needs: lint_test
   #     runs-on: self-hosted
