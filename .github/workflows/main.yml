@@ -32,7 +32,6 @@ jobs:
   sonarcloud_scan:
     needs: lint_test
     runs-on: self-hosted
-    continue-on-error: true
     permissions:
       contents: read
       pull-requests: read
@@ -43,18 +42,14 @@ jobs:
 
       - name: Run SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
-        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
 
       - name: Quality Gate Check
         uses: sonarsource/sonarqube-quality-gate-action@master
-        continue-on-error: true
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
 
       - name: Upload SonarCloud Artifact
         uses: actions/upload-artifact@v4
@@ -180,206 +175,206 @@ jobs:
   #         sarif_file: reports/dependency-check-report.sarif
 
       
-  snyk_scan_sca:
-    needs: lint_test
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
+  # snyk_scan_sca:
+  #   needs: lint_test
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
 
       
-      - name: Snyk Test for Artifact
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: >-
-            --all-projects
-            --detection-depth=3
-            --exclude=kubernetes,k8s,helm,infra,docker
-            --severity-threshold=medium
-            --json-file-output=snyk-report.json
-        continue-on-error: true
+  #     - name: Snyk Test for Artifact
+  #       uses: snyk/actions/node@master
+  #       env:
+  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #       with:
+  #         args: >-
+  #           --all-projects
+  #           --detection-depth=3
+  #           --exclude=kubernetes,k8s,helm,infra,docker
+  #           --severity-threshold=medium
+  #           --json-file-output=snyk-report.json
+  #       continue-on-error: true
 
       
-      - name: Snyk Monitor
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-          args: >-
-            --all-projects
-            --detection-depth=3
-            --exclude=kubernetes,k8s,helm,infra,docker
-      - name: Upload Snyk Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snyk-sca-report
-          path: snyk-report.json
-  build:
-    needs: [sonarcloud_scan, snyk_scan_sca]
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
+  #     - name: Snyk Monitor
+  #       uses: snyk/actions/node@master
+  #       env:
+  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #       with:
+  #         command: monitor
+  #         args: >-
+  #           --all-projects
+  #           --detection-depth=3
+  #           --exclude=kubernetes,k8s,helm,infra,docker
+  #     - name: Upload Snyk Artifact
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: snyk-sca-report
+  #         path: snyk-report.json
+  # build:
+  #   needs: [sonarcloud_scan, snyk_scan_sca]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
       
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+  #     - uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
+  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push microservices1
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
+  #     - name: Build & Push microservices1
+  #       run: |
+  #         docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest ./microservices1
+  #         docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices1:latest
 
-      - name: Build & Push microservices2
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
-  scan_docker_images:
-    needs: build
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      security-events: write
-    strategy:
-      matrix:
-        image: [microservices1, microservices2]
-    steps:
-      - uses: actions/checkout@v4
+  #     - name: Build & Push microservices2
+  #       run: |
+  #         docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest ./microservices2
+  #         docker push ${{ secrets.DOCKERHUB_USERNAME }}/microservices2:latest
+  # scan_docker_images:
+  #   needs: build
+  #   runs-on: self-hosted
+  #   permissions:
+  #     contents: read
+  #     security-events: write
+  #   strategy:
+  #     matrix:
+  #       image: [microservices1, microservices2]
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Install Trivy directly  # ✅ Evite le téléchargement lent via l'action
-        run: |
-          wget -qO- https://github.com/aquasecurity/trivy/releases/download/v0.69.0/trivy_0.69.0_Linux-64bit.tar.gz \
-            | tar -xz trivy
-          sudo mv trivy /usr/local/bin/
+  #     - name: Install Trivy directly  # ✅ Evite le téléchargement lent via l'action
+  #       run: |
+  #         wget -qO- https://github.com/aquasecurity/trivy/releases/download/v0.69.0/trivy_0.69.0_Linux-64bit.tar.gz \
+  #           | tar -xz trivy
+  #         sudo mv trivy /usr/local/bin/
 
-      - name: Run Trivy scan
-        run: |
-          trivy image \
-            --format sarif \
-            --output trivy-${{ matrix.image }}.sarif \
-            --severity CRITICAL,HIGH \
-            --timeout 10m \
-            --db-repository ghcr.io/aquasecurity/trivy-db \
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest || true
-        # ✅ || true : génère le SARIF même si vulnés trouvées
-        # ✅ --db-repository : mirror alternatif si gcr.io timeout
-        # ✅ --timeout 10m : évite le context deadline exceeded
+  #     - name: Run Trivy scan
+  #       run: |
+  #         trivy image \
+  #           --format sarif \
+  #           --output trivy-${{ matrix.image }}.sarif \
+  #           --severity CRITICAL,HIGH \
+  #           --timeout 10m \
+  #           --db-repository ghcr.io/aquasecurity/trivy-db \
+  #           ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:latest || true
+  #       # ✅ || true : génère le SARIF même si vulnés trouvées
+  #       # ✅ --db-repository : mirror alternatif si gcr.io timeout
+  #       # ✅ --timeout 10m : évite le context deadline exceeded
 
-      - name: Ensure SARIF exists  # ✅ Evite "Path does not exist"
-        if: always()
-        run: |
-          if [ ! -f trivy-${{ matrix.image }}.sarif ]; then
-            echo '{"version":"2.1.0","runs":[]}' > trivy-${{ matrix.image }}.sarif
-          fi
+  #     - name: Ensure SARIF exists  # ✅ Evite "Path does not exist"
+  #       if: always()
+  #       run: |
+  #         if [ ! -f trivy-${{ matrix.image }}.sarif ]; then
+  #           echo '{"version":"2.1.0","runs":[]}' > trivy-${{ matrix.image }}.sarif
+  #         fi
 
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v4  # ✅ v3 → v4
-        if: always()
-        with:
-          sarif_file: trivy-${{ matrix.image }}.sarif
-          category: container-${{ matrix.image }}
-  scan_iac:
-    needs: scan_docker_images
-    runs-on: self-hosted
+  #     - name: Upload SARIF
+  #       uses: github/codeql-action/upload-sarif@v4  # ✅ v3 → v4
+  #       if: always()
+  #       with:
+  #         sarif_file: trivy-${{ matrix.image }}.sarif
+  #         category: container-${{ matrix.image }}
+  # scan_iac:
+  #   needs: scan_docker_images
+  #   runs-on: self-hosted
 
-    permissions:
-      contents: read
-      security-events: write
+  #   permissions:
+  #     contents: read
+  #     security-events: write
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Install Checkov
-        run: pip install checkov
+  #     - name: Install Checkov
+  #       run: pip install checkov
 
-      - name: Run Checkov scan
-        run: |
-          checkov -d /kubernetes --output sarif > checkov.sarif
+  #     - name: Run Checkov scan
+  #       run: |
+  #         checkov -d /kubernetes --output sarif > checkov.sarif
 
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: checkov.sarif
-          category: iac-scan
+  #     - name: Upload SARIF
+  #       uses: github/codeql-action/upload-sarif@v3
+  #       with:
+  #         sarif_file: checkov.sarif
+  #         category: iac-scan
 
-      - name: Fail on HIGH severity
-        run: |
-          HIGH=$(grep -c '"level":"high"' checkov.sarif || true)
-          echo "HIGH severity issues: $HIGH"
-          if [ "$HIGH" -gt 0 ]; then
-            echo "::error::HIGH severity IaC issues detected"
-            exit 1
-          fi
+  #     - name: Fail on HIGH severity
+  #       run: |
+  #         HIGH=$(grep -c '"level":"high"' checkov.sarif || true)
+  #         echo "HIGH severity issues: $HIGH"
+  #         if [ "$HIGH" -gt 0 ]; then
+  #           echo "::error::HIGH severity IaC issues detected"
+  #           exit 1
+  #         fi
   
-  deploy:
-    runs-on: self-hosted
-    needs: scan_iac
+  # deploy:
+  #   runs-on: self-hosted
+  #   needs: scan_iac
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repo
+  #       uses: actions/checkout@v4
 
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl apply -f kubernetes/ 
-  zap_scan:
-    needs: deploy
-    runs-on: self-hosted
-    permissions:
-      security-events: write
-      contents: read
+  #     - name: Deploy to Kubernetes
+  #       run: |
+  #         kubectl apply -f kubernetes/ 
+  # zap_scan:
+  #   needs: deploy
+  #   runs-on: self-hosted
+  #   permissions:
+  #     security-events: write
+  #     contents: read
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      # ── 1. Wait until the app is ready ─────────────────────────────
-      - name: Wait for app
-        run: |
-          echo "Waiting for $APP_URL ..."
-          for i in $(seq 1 30); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
-            if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
-              echo "App is up (HTTP $status)"
-              exit 0
-            fi
-            echo "  attempt $i: HTTP $status – retrying in 10 s"
-            sleep 10
-          done
-          echo "App did not become ready in time"
-          exit 1
+  #     # ── 1. Wait until the app is ready ─────────────────────────────
+  #     - name: Wait for app
+  #       run: |
+  #         echo "Waiting for $APP_URL ..."
+  #         for i in $(seq 1 30); do
+  #           status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
+  #           if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
+  #             echo "App is up (HTTP $status)"
+  #             exit 0
+  #           fi
+  #           echo "  attempt $i: HTTP $status – retrying in 10 s"
+  #           sleep 10
+  #         done
+  #         echo "App did not become ready in time"
+  #         exit 1
 
-      # ── 2. ZAP Full scan ─────────────────────────────
-      - name: ZAP Full Scan
-        uses: zaproxy/action-full-scan@v0.10.0
-        with:
-          target: ${{ env.APP_URL }}
-          cmd_options: >
-            -T 60    # max scan duration in minutes
-          artifact_name: zap-full-report
+  #     # ── 2. ZAP Full scan ─────────────────────────────
+  #     - name: ZAP Full Scan
+  #       uses: zaproxy/action-full-scan@v0.10.0
+  #       with:
+  #         target: ${{ env.APP_URL }}
+  #         cmd_options: >
+  #           -T 60    # max scan duration in minutes
+  #         artifact_name: zap-full-report
 
-      # ── 3. Upload SARIF to GitHub Security tab ─────────────────────────────
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: zap.sarif
-          category: DAST
-      - name: Fail on HIGH
-        if: always()
-        run: |
-          HIGH=$(python3 -c "
-            import json
-            sarif = json.load(open('zap.sarif'))
-            count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
-            print(count)
-            ")
-                    echo "HIGH severity findings: $HIGH"
-          if [ "$HIGH" -gt 0 ]; then
-            echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
-            exit 1
-          fi
+  #     # ── 3. Upload SARIF to GitHub Security tab ─────────────────────────────
+  #     - name: Upload SARIF
+  #       if: always()
+  #       uses: github/codeql-action/upload-sarif@v3
+  #       with:
+  #         sarif_file: zap.sarif
+  #         category: DAST
+  #     - name: Fail on HIGH
+  #       if: always()
+  #       run: |
+  #         HIGH=$(python3 -c "
+  #           import json
+  #           sarif = json.load(open('zap.sarif'))
+  #           count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
+  #           print(count)
+  #           ")
+  #                   echo "HIGH severity findings: $HIGH"
+  #         if [ "$HIGH" -gt 0 ]; then
+  #           echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
+  #           exit 1
+  #         fi
