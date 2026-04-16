@@ -354,51 +354,55 @@ jobs:
       APP_URL_2: http://192.168.49.2:30002
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Wait for apps
-      run: |
-        for URL in "$APP_URL_1" "$APP_URL_2"; do
-          echo "Waiting for $URL ..."
-          for i in $(seq 1 20); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
+      # ── 1. Wait until the app is ready ─────────────────────────────
+      - name: Wait for app
+        run: |
+          echo "Waiting for $APP_URL ..."
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
             if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
-              echo "✅ $URL is up (HTTP $status)"
-              break
+              echo "App is up (HTTP $status)"
+              exit 0
             fi
-            echo "  attempt $i: HTTP $status – retrying in 10s"
+            echo "  attempt $i: HTTP $status – retrying in 10 s"
             sleep 10
-            if [ "$i" -eq 20 ]; then exit 1; fi
           done
-        done
+          echo "App did not become ready in time"
+          exit 1
 
-    # --- SCAN MICROSERVICE 1 ---
-    - name: ZAP Scan - Microservice 1
-      uses: zaproxy/action-full-scan@v0.12.0
-      with:
-        target: ${{ env.APP_URL_1 }}
-        artifact_name: 'zap-report-1'
-      continue-on-error: true
-    # --- SCAN MICROSERVICE 2 ---
-    - name: ZAP Scan - Microservice 2
-      uses: zaproxy/action-full-scan@v0.12.0
-      with:
-        target: ${{ env.APP_URL_2 }}
-        artifact_name: 'zap-report-2'
-      continue-on-error: true
-    # --- ANALYSE DES RÉSULTATS ---
-    - name: Check for Critical Issues
-      if: always()
-      run: |
-        # Vérification simplifiée : si le fichier existe et contient des erreurs
-        for f in zap1.sarif zap2.sarif; do
-          if [ -f "$f" ]; then
-            echo "Analysing $f..."
-            # On cherche le mot 'error' ou 'high' dans le rapport
-            COUNT=$(grep -i "error" "$f" | wc -l)
-            if [ "$COUNT" -gt 0 ]; then
-               echo "::warning::Vulnerabilities found in $f"
-            fi
+      # ── 2. ZAP Full scan ─────────────────────────────
+      - name: ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: http://192.168.49.2:3000
+
+          cmd_options: >
+            -T 60    # max scan duration in minutes
+          artifact_name: zap-full-report
+
+      - name: ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: http://192.168.49.2:3002
+
+          cmd_options: >
+            -T 60    # max scan duration in minutes
+          artifact_name: zap-full-report      
+
+      - name: Fail on HIGH
+        if: always()
+        run: |
+          HIGH=$(python3 -c "
+            import json
+            sarif = json.load(open('zap.sarif'))
+            count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
+            print(count)
+            ")
+                    echo "HIGH severity findings: $HIGH"
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
+            exit 1
           fi
-        done
