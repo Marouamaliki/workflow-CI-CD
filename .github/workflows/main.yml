@@ -349,54 +349,74 @@ jobs:
     permissions:
       security-events: write
       contents: read
+    env:
+      APP_URL_1: http://192.168.49.2:30000
+      APP_URL_2: http://192.168.49.2:30002
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # ── 1. Wait until the app is ready ─────────────────────────────
-      - name: Wait for app
-        run: |
-          echo "Waiting for $APP_URL ..."
+    - name: Wait for apps
+      run: |
+        for URL in "$APP_URL_1" "$APP_URL_2"; do
+          echo "Waiting for $URL ..."
           for i in $(seq 1 30); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
             if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
-              echo "App is up (HTTP $status)"
-              exit 0
+              echo "✅ $URL is up (HTTP $status)"
+              break
             fi
-            echo "  attempt $i: HTTP $status – retrying in 10 s"
+            echo "  attempt $i: HTTP $status – retrying in 10s"
             sleep 10
+            if [ "$i" -eq 30 ]; then
+              echo "❌ $URL did not become ready"
+              exit 1
+            fi
           done
-          echo "App did not become ready in time"
+        done
+
+    - name: ZAP Scan - Microservice 1
+      uses: zaproxy/action-full-scan@v0.10.0
+      with:
+        target: ${{ env.APP_URL_1 }}
+        cmd_options: '-T 60'
+        artifact_name: zap-report-microservice1
+      continue-on-error: true
+
+    - name: ZAP Scan - Microservice 2
+      uses: zaproxy/action-full-scan@v0.10.0
+      with:
+        target: ${{ env.APP_URL_2 }}
+        cmd_options: '-T 60'
+        artifact_name: zap-report-microservice2
+      continue-on-error: true
+
+    - name: Upload SARIF - Microservice 1
+      if: always()
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: zap.sarif
+        category: DAST-microservice1
+
+    - name: Upload SARIF - Microservice 2
+      if: always()
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: zap.sarif
+        category: DAST-microservice2
+
+    - name: Fail on HIGH
+      if: always()
+      run: |
+        HIGH=$(python3 -c "
+        import json
+        sarif = json.load(open('zap.sarif'))
+        count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
+        print(count)
+        ")
+        echo "HIGH severity findings: $HIGH"
+        if [ "$HIGH" -gt 0 ]; then
+          echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities."
           exit 1
-
-      # ── 2. ZAP Full scan ─────────────────────────────
-      - name: ZAP Full Scan
-        uses: zaproxy/action-full-scan@v0.10.0
-        with:
-          target: ${{ env.APP_URL }}
-          cmd_options: >
-            -T 60    # max scan duration in minutes
-          artifact_name: zap-full-report
-
-      # ── 3. Upload SARIF to GitHub Security tab ─────────────────────────────
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: zap.sarif
-          category: DAST
-      - name: Fail on HIGH
-        if: always()
-        run: |
-          HIGH=$(python3 -c "
-            import json
-            sarif = json.load(open('zap.sarif'))
-            count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
-            print(count)
-            ")
-                    echo "HIGH severity findings: $HIGH"
-          if [ "$HIGH" -gt 0 ]; then
-            echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
-            exit 1
-          fi
+        fi
