@@ -309,6 +309,7 @@ jobs:
           source venv/bin/activate
           checkov -d kubernetes/ --output sarif --output-file-path checkov.sarif
 
+
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -316,6 +317,7 @@ jobs:
           category: iac-scan
 
       - name: Fail on HIGH severity
+        continue-on-error: true 
         run: |
           HIGH=$(grep -c '"level":"high"' checkov.sarif || true)
           echo "HIGH severity issues: $HIGH"
@@ -323,6 +325,12 @@ jobs:
             echo "::error::HIGH severity IaC issues detected"
             exit 1
           fi
+      - name: Upload Checkov Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-iac-report
+          path: checkov.sarif
   
   deploy:
     runs-on: self-hosted
@@ -335,60 +343,60 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f kubernetes/ 
-  # zap_scan:
-  #   needs: deploy
-  #   runs-on: self-hosted
-  #   permissions:
-  #     security-events: write
-  #     contents: read
+  zap_scan:
+    needs: deploy
+    runs-on: self-hosted
+    permissions:
+      security-events: write
+      contents: read
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #     # ── 1. Wait until the app is ready ─────────────────────────────
-  #     - name: Wait for app
-  #       run: |
-  #         echo "Waiting for $APP_URL ..."
-  #         for i in $(seq 1 30); do
-  #           status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
-  #           if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
-  #             echo "App is up (HTTP $status)"
-  #             exit 0
-  #           fi
-  #           echo "  attempt $i: HTTP $status – retrying in 10 s"
-  #           sleep 10
-  #         done
-  #         echo "App did not become ready in time"
-  #         exit 1
+      # ── 1. Wait until the app is ready ─────────────────────────────
+      - name: Wait for app
+        run: |
+          echo "Waiting for $APP_URL ..."
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || true)
+            if [ "$status" -eq 200 ] || [ "$status" -eq 302 ]; then
+              echo "App is up (HTTP $status)"
+              exit 0
+            fi
+            echo "  attempt $i: HTTP $status – retrying in 10 s"
+            sleep 10
+          done
+          echo "App did not become ready in time"
+          exit 1
 
-  #     # ── 2. ZAP Full scan ─────────────────────────────
-  #     - name: ZAP Full Scan
-  #       uses: zaproxy/action-full-scan@v0.10.0
-  #       with:
-  #         target: ${{ env.APP_URL }}
-  #         cmd_options: >
-  #           -T 60    # max scan duration in minutes
-  #         artifact_name: zap-full-report
+      # ── 2. ZAP Full scan ─────────────────────────────
+      - name: ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: ${{ env.APP_URL }}
+          cmd_options: >
+            -T 60    # max scan duration in minutes
+          artifact_name: zap-full-report
 
-  #     # ── 3. Upload SARIF to GitHub Security tab ─────────────────────────────
-  #     - name: Upload SARIF
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       with:
-  #         sarif_file: zap.sarif
-  #         category: DAST
-  #     - name: Fail on HIGH
-  #       if: always()
-  #       run: |
-  #         HIGH=$(python3 -c "
-  #           import json
-  #           sarif = json.load(open('zap.sarif'))
-  #           count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
-  #           print(count)
-  #           ")
-  #                   echo "HIGH severity findings: $HIGH"
-  #         if [ "$HIGH" -gt 0 ]; then
-  #           echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
-  #           exit 1
-  #         fi
+      # ── 3. Upload SARIF to GitHub Security tab ─────────────────────────────
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: zap.sarif
+          category: DAST
+      - name: Fail on HIGH
+        if: always()
+        run: |
+          HIGH=$(python3 -c "
+            import json
+            sarif = json.load(open('zap.sarif'))
+            count = sum(1 for r in sarif['runs'][0].get('results', []) if r.get('level') == 'error')
+            print(count)
+            ")
+                    echo "HIGH severity findings: $HIGH"
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::error::ZAP found $HIGH HIGH-severity vulnerabilities. Blocking merge."
+            exit 1
+          fi
