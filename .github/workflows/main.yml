@@ -379,23 +379,7 @@ jobs:
       with:
         target: ${{ env.APP_URL_1 }}
         artifact_name: 'zap-report-1'
-        # On force ZAP à générer un rapport JSON qu'on transformera ou on récupère le SARIF s'il est supporté
-        # Note: L'action zap génère souvent les fichiers dans le dossier de travail par défaut
       continue-on-error: true
-
-    # L'action ZAP crée souvent un fichier report_json.json ou similaire
-    # Pour l'upload SARIF, utilise cette version simplifiée :
-    - name: Rename and Move Report 1
-      run: mv report_json.json zap1.sarif || touch zap1.sarif
-      if: always()
-
-    - name: Upload SARIF - Microservice 1
-      if: always()
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: zap1.sarif
-        category: DAST-microservice1
-
     # --- SCAN MICROSERVICE 2 ---
     - name: ZAP Scan - Microservice 2
       uses: zaproxy/action-full-scan@v0.12.0
@@ -403,18 +387,6 @@ jobs:
         target: ${{ env.APP_URL_2 }}
         artifact_name: 'zap-report-2'
       continue-on-error: true
-
-    - name: Rename and Move Report 2
-      run: mv report_json.json zap2.sarif || touch zap2.sarif
-      if: always()
-
-    - name: Upload SARIF - Microservice 2
-      if: always()
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: zap2.sarif
-        category: DAST-microservice2
-
     # --- ANALYSE DES RÉSULTATS ---
     - name: Check for Critical Issues
       if: always()
