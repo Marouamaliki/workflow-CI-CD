@@ -67,7 +67,7 @@ jobs:
             -o sonarcloud-report.json
 
       - name: Upload SonarCloud Artifact
-        if: always()
+        if: always() #execution dans nimporte quelle situation
         uses: actions/upload-artifact@v4
         with:
           name: sonarcloud-report
@@ -208,7 +208,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      
       - name: Snyk Test for Artifact #scanner 
         uses: snyk/actions/node@master
         env:
@@ -349,10 +348,11 @@ jobs:
     permissions:
       security-events: write
       contents: read
-    env:
-      APP_URL_1: http://192.168.49.2:30000
-      APP_URL_2: http://192.168.49.2:30002
-
+    strategy:
+      matrix:
+        app_url:
+          - http://192.168.49.2:3000
+          - http://192.168.49.2:3002
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -377,21 +377,10 @@ jobs:
       - name: ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.10.0
         with:
-          target: http://192.168.49.2:3000
-
+          target: ${{ matrix.app_url }}
           cmd_options: >
             -T 60    # max scan duration in minutes
-          artifact_name: zap-full-report
-
-      - name: ZAP Full Scan
-        uses: zaproxy/action-full-scan@v0.10.0
-        with:
-          target: http://192.168.49.2:3002
-
-          cmd_options: >
-            -T 60    # max scan duration in minutes
-          artifact_name: zap-full-report      
-
+          artifact_name: zap-report-${{ matrix.app_url }}
       - name: Fail on HIGH
         if: always()
         run: |
