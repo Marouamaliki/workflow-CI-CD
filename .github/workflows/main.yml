@@ -353,9 +353,9 @@ jobs:
       matrix:
         include:
           - name: microservices1
-            app_url: http://192.168.49.2:3000
+            app_url: http://192.168.49.2:30000
           - name: microservices2
-            app_url: http://192.168.49.2:3002
+            app_url: http://192.168.49.2:30002
 
     steps:
       - name: Checkout repository
