@@ -229,12 +229,12 @@ jobs:
             --all-projects
             --detection-depth=3
             --exclude=kubernetes,k8s,helm,infra,docker
-      - name: Upload Snyk Artifact #génération des artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snyk-sca-report
-          path: snyk-report.json
+      # - name: Upload Snyk Artifact #génération des artifacts
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: snyk-sca-report
+      #     path: snyk-report.json
   build:
     needs: [sonarcloud_scan, snyk_scan_sca]
     runs-on: self-hosted
