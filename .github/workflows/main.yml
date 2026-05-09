@@ -165,70 +165,70 @@ jobs:
   #         name: codeql-security-report
   #         path: results-sarif
 
-  # owasp_dependency_check:
-  #   needs: lint_test
-  #   runs-on: self-hosted 
-  #   permissions:
-  #     security-events: write
-  #     contents: read
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+  owasp_dependency_check:
+    needs: lint_test
+    runs-on: self-hosted 
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Run OWASP DC (No RetireJS)
-  #       run: |
-  #         mkdir -p ${{ github.workspace }}/reports
-  #         mkdir -p /home/alexsys/odc_cache/data
+      - name: Run OWASP DC (No RetireJS)
+        run: |
+          mkdir -p ${{ github.workspace }}/reports
+          mkdir -p /home/alexsys/odc_cache/data
           
-  #         docker run --rm \
-  #           --network host \
-  #           --dns 8.8.8.8 \
-  #           -v ${{ github.workspace }}:/src \
-  #           -v ${{ github.workspace }}/reports:/report \
-  #           -v /home/alexsys/odc_cache/data:/usr/share/dependency-check/data \
-  #           owasp/dependency-check \
-  #           --scan /src \
-  #           --format SARIF \
-  #           --format HTML \
-  #           --out /report \
-  #           --nvdApiKey ${{ secrets.NVD_API_KEY }} \
-  #           --disableRetireJS \
-  #           --disableNodeAudit \
-  #           --failOnCVSS 7
+          docker run --rm \
+            --network host \
+            --dns 8.8.8.8 \
+            -v ${{ github.workspace }}:/src \
+            -v ${{ github.workspace }}/reports:/report \
+            -v /home/alexsys/odc_cache/data:/usr/share/dependency-check/data \
+            owasp/dependency-check \
+            --scan /src \
+            --format SARIF \
+            --format HTML \
+            --out /report \
+            --nvdApiKey ${{ secrets.NVD_API_KEY }} \
+            --disableRetireJS \
+            --disableNodeAudit \
+            --failOnCVSS 7
 
-  #     - name: Upload SARIF to GitHub
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       if: always()
-  #       with:
-  #         sarif_file: reports/dependency-check-report.sarif
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/dependency-check-report.sarif
 
       
-  snyk_scan_sca:
-    needs: lint_test
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Snyk Test for Artifact #scanner 
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: >-
-            --all-projects
-            --detection-depth=3
-            --exclude=kubernetes,k8s,helm,infra,docker
-            --severity-threshold=medium
-            --json-file-output=snyk-report.json
-      - name: Snyk Monitor #sychroniser avec serveur cloud
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-          args: >-
-            --all-projects
-            --detection-depth=3
-            --exclude=kubernetes,k8s,helm,infra,docker
+  # snyk_scan_sca:
+  #   needs: lint_test
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Snyk Test for Artifact #scanner 
+  #       uses: snyk/actions/node@master
+  #       env:
+  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #       with:
+  #         args: >-
+  #           --all-projects
+  #           --detection-depth=3
+  #           --exclude=kubernetes,k8s,helm,infra,docker
+  #           --severity-threshold=medium
+  #           --json-file-output=snyk-report.json
+  #     - name: Snyk Monitor #sychroniser avec serveur cloud
+  #       uses: snyk/actions/node@master
+  #       env:
+  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  #       with:
+  #         command: monitor
+  #         args: >-
+  #           --all-projects
+  #           --detection-depth=3
+  #           --exclude=kubernetes,k8s,helm,infra,docker
       # - name: Upload Snyk Artifact #génération des artifacts
       #   uses: actions/upload-artifact@v4
       #   if: always()
@@ -236,7 +236,7 @@ jobs:
       #     name: snyk-sca-report
       #     path: snyk-report.json
   build:
-    needs: [sonarcloud_scan, snyk_scan_sca]
+    needs: [sonarcloud_scan,owasp_dependency_check ]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
